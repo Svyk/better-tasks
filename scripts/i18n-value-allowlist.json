@@ -1,0 +1,48 @@
+{
+  "note": "Strings that are legitimately identical to English. 'keys' are exempt in every locale (Roam page names, DNP titles). 'locales' lists genuine cognates per locale, e.g. German 'Start', French 'Tags'. Regenerate deliberately — an entry here silences the untranslated-value check.",
+  "keys": [
+    "settings.excludePicklistPagesPlaceholder"
+  ],
+  "locales": {
+    "de": [
+      "dashboard.filterSections.Start",
+      "dashboard.filters.groups.status",
+      "dashboard.filters.tagsLabel",
+      "dashboard.topbarTitle",
+      "metadata.start",
+      "prompts.form.startLabel"
+    ],
+    "es": [
+      "buttons.no",
+      "dashboard.bulk.snooze1d",
+      "dashboard.bulk.snooze7d",
+      "dashboard.snoozePlus1",
+      "dashboard.snoozePlus7"
+    ],
+    "fr": [
+      "dashboard.filterValues.active",
+      "dashboard.filters.groups.dates",
+      "dashboard.filters.tagsLabel",
+      "dashboard.notesLabel",
+      "metadata.notes",
+      "series.exceptions"
+    ],
+    "it": [
+      "buttons.no",
+      "focusMode.enterButton"
+    ],
+    "pt-BR": [
+      "dashboard.bulk.snooze1d",
+      "dashboard.bulk.snooze7d",
+      "dashboard.snoozePlus1",
+      "dashboard.snoozePlus7"
+    ],
+    "pt-PT": [
+      "dashboard.bulk.snooze1d",
+      "dashboard.bulk.snooze7d",
+      "dashboard.filters.groups.meta",
+      "dashboard.snoozePlus1",
+      "dashboard.snoozePlus7"
+    ]
+  }
+}

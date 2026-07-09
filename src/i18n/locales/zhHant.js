@@ -236,7 +236,7 @@ const locale = {
         high: "高"
       },
       contextLabel: "情境（可多個）",
-      contextPlaceholder: "@home, @work",
+      contextPlaceholder: "@家, @工作",
       messageWithTask: "請輸入任務內容、可選重複規則、日期與中繼資料。",
       messageWithoutTask: "請輸入可選的重複規則、日期與中繼資料。"
     }
@@ -317,7 +317,7 @@ const locale = {
     circularDependency: "偵測到循環相依"
   },
   dashboard: {
-    topbarTitle: "Better Tasks Dashboard",
+    topbarTitle: "Better Tasks 儀表板",
     title: "Better Tasks",
     subtitle: "在 Roam Research 中進行全面的任務管理。",
     refresh: "重新整理",

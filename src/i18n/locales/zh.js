@@ -236,7 +236,7 @@ const locale = {
         high: "高"
       },
       contextLabel: "情境（可多选）",
-      contextPlaceholder: "@home, @work",
+      contextPlaceholder: "@家, @工作",
       messageWithTask: "请输入任务文本、可选重复规则、日期和元数据。",
       messageWithoutTask: "请输入可选的重复规则、日期和元数据。"
     }
@@ -317,7 +317,7 @@ const locale = {
     circularDependency: "检测到循环依赖"
   },
   dashboard: {
-    topbarTitle: "Better Tasks Dashboard",
+    topbarTitle: "Better Tasks 仪表板",
     title: "Better Tasks",
     subtitle: "在 Roam Research 中进行全面的任务管理。",
     refresh: "刷新",

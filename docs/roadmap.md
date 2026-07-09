@@ -185,7 +185,7 @@ This document is the **canonical Better Tasks roadmap**, integrating shipped wor
 - ✅ Modal-stacking guard prevents launching from inside Analytics / Series View / Keyboard Help / open three-dot menu
 - ✅ Click-outside-the-panel exits Focus Mode; backdrop click also exits
 - ✅ Subscription-free: panel reads `liveSnapshot` as a prop (no new controller subscriptions, no leak risk)
-- ✅ Internationalised across all 13 supported locales (English authoritative; native translations to land in a follow-up)
+- ✅ Internationalised across all 13 supported locales (native translations landed; verified 2026-07-09)
 
 ### Expanded Reviews — Complete ✅
 - ✅ Daily review: Due Today → Completed Yesterday → Overdue (3-step flow)
@@ -210,7 +210,7 @@ This document is the **canonical Better Tasks roadmap**, integrating shipped wor
 - ✅ Settings: master enable (default ON, seeded), text-edit opt-in, optional max-entries cap, notes attribute rename
 - ✅ "View activity" panel in task actions menu — reverse-chronological list with "Open history in Roam" sidebar link
 - ✅ `deconvertTask` removes the history container alongside attribute children — preserves Trust & Exit guarantee
-- ✅ i18n parity stubs in all 13 locales
+- ✅ Natively translated in all 13 locales (verified 2026-07-09)
 - ✅ Unblocks Phase 10 Smart Suggestions by providing the structured event data spine
 
 ### Keyboard Navigation — Complete ✅
