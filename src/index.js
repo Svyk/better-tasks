@@ -77,6 +77,12 @@ import {
   hasExportableDate,
 } from "./core/export";
 import {
+  parseDependsValue,
+  formatDependsValue,
+  wouldCreateCycle as wouldCreateCycleCore,
+  computeBlockedState as computeBlockedStateCore,
+} from "./core/dependencies";
+import {
   initProjectStore,
   resetProjectStore,
   refreshProjectOptions,
@@ -3398,6 +3404,15 @@ export default {
           return !!node.closest?.(".rt-pill-wrap");
         };
         let shouldBatchRefreshPills = false;
+        // Roam emits several nested childList records for one logical block
+        // change — the container, the block main, and the checkbox itself can
+        // each be reported. Without this, a single completion runs the uid
+        // derivation (a DOM walk) once per record, and `noteDoneAddition` fires
+        // repeatedly: the first call consumes the paired removal, the rest fall
+        // through and re-insert a stale `completionPairs` entry. Dedupe per uid
+        // for the whole batch.
+        const seenTodoRemovals = new Set();
+        const seenDoneAdditions = new Set();
         for (const mutation of mutationsList) {
           if (mutation.type === "attributes") {
             const target = mutation.target;
@@ -3414,6 +3429,10 @@ export default {
                 const uid = deriveUidFromMutationNode(target, null);
                 if (uid) {
                   const checkbox = target.querySelector?.("input[type='checkbox']") || null;
+                  // Always enqueue: this in-place class flip is the completion
+                  // signal. Only the redundant re-noting is suppressed, by
+                  // marking the uid so later childList records skip it.
+                  seenTodoRemovals.add(uid);
                   noteTodoRemoval(uid);
                   enqueueCompletion(uid, { checkbox, userInitiated: true, detectedAt: Date.now() });
                   shouldBatchRefreshPills = true;
@@ -3452,15 +3471,17 @@ export default {
               node.querySelectorAll?.(".rm-checkbox.rm-todo")?.forEach((el) => todoHosts.push(el));
               for (const host of todoHosts) {
                 const uid = deriveUidFromMutationNode(host, target);
-                if (uid) {
+                if (uid && !seenTodoRemovals.has(uid)) {
+                  seenTodoRemovals.add(uid);
                   noteTodoRemoval(uid);
                   shouldBatchRefreshPills = true;
                 }
               }
               // New blocks/checkboxes disappearing can invalidate pills.
               if (
-                node.matches?.(".rm-block-main, .roam-block-container, .roam-block, .rm-checkbox") ||
-                node.querySelector?.(".rm-block-main, .roam-block-container, .roam-block, .rm-checkbox")
+                !shouldBatchRefreshPills &&
+                (node.matches?.(".rm-block-main, .roam-block-container, .roam-block, .rm-checkbox") ||
+                  node.querySelector?.(".rm-block-main, .roam-block-container, .roam-block, .rm-checkbox"))
               ) {
                 shouldBatchRefreshPills = true;
               }
@@ -3477,17 +3498,19 @@ export default {
             node.querySelectorAll?.(".rm-checkbox.rm-done")?.forEach((el) => doneHosts.push(el));
 
             for (const host of doneHosts) {
-              const checkbox = host.querySelector?.("input[type='checkbox']") || null;
               const uid = deriveUidFromMutationNode(host, target);
-              if (uid) {
+              if (uid && !seenDoneAdditions.has(uid)) {
+                seenDoneAdditions.add(uid);
+                const checkbox = host.querySelector?.("input[type='checkbox']") || null;
                 noteDoneAddition(uid, checkbox);
                 shouldBatchRefreshPills = true;
               }
             }
             // New blocks/checkboxes appearing are the main case for pill decoration (scroll/render).
             if (
-              node.matches?.(".rm-block-main, .roam-block-container, .roam-block, .rm-checkbox") ||
-              node.querySelector?.(".rm-block-main, .roam-block-container, .roam-block, .rm-checkbox")
+              !shouldBatchRefreshPills &&
+              (node.matches?.(".rm-block-main, .roam-block-container, .roam-block, .rm-checkbox") ||
+                node.querySelector?.(".rm-block-main, .roam-block-container, .roam-block, .rm-checkbox"))
             ) {
               shouldBatchRefreshPills = true;
             }
@@ -4580,32 +4603,41 @@ export default {
 
     function invalidateBlockedState(uid) {
       if (uid) blockedStateCache.delete(uid);
-      if (uid) {
-        for (const key of cycleDetectionCache.keys()) {
-          if (key.startsWith(uid + "|") || key.endsWith("|" + uid)) cycleDetectionCache.delete(key);
-        }
-      }
-    }
-
-    function invalidateAllBlockedState() {
-      blockedStateCache.clear();
+      // A cached cycle verdict for `X|Y` depends on the whole transitive subgraph
+      // beneath Y, not just on X and Y. Deleting only the keys mentioning `uid`
+      // left verdicts stale whenever an *intermediate* node's dependencies
+      // changed, so any edge change clears the lot. The map is tiny.
       cycleDetectionCache.clear();
     }
 
-    async function computeBlockedState(dependsUids, taskUid) {
-      if (!Array.isArray(dependsUids) || !dependsUids.length) return { blocked: false, blockedBy: [], staleUids: [] };
-      const blockedBy = [];
-      const staleUids = [];
-      for (const uid of dependsUids) {
+    // Graph accessors for the pure dependency engine in ./core/dependencies.
+    // Built once per operation: resolveAttributeNames() performs ~14 settings
+    // lookups, so it must not run per node of a traversal.
+    function makeDependencyAccessors() {
+      const attrNames = resolveAttributeNames();
+      const getDeps = async (uid) => {
         const block = await getBlock(uid);
-        if (!block) { staleUids.push(uid); continue; } // deleted dependency = no longer blocking
-        if (!isBlockCompleted(block)) {
-          // Circular dependency check: if dep has a path back to taskUid, it's a cycle — skip it
-          if (taskUid && await wouldCreateCycle(taskUid, uid)) continue;
-          blockedBy.push({ uid, title: formatDashboardTitle(block.string || "") });
-        }
+        if (!block) return null; // deleted block — a dead end, not an error
+        const children = Array.isArray(block.children) ? block.children : [];
+        const childAttrMap = parseAttrsFromChildBlocks(children);
+        const dependsEntry = pickChildAttr(childAttrMap, attrNames.dependsAliases || [], { allowFallback: true });
+        return dependsEntry?.value ? parseDependsValue(dependsEntry.value) : [];
+      };
+      const getTask = async (uid) => {
+        const block = await getBlock(uid);
+        if (!block) return null;
+        return { completed: isBlockCompleted(block), title: formatDashboardTitle(block.string || "") };
+      };
+      return { getDeps, getTask };
+    }
+
+    async function computeBlockedState(dependsUids, taskUid) {
+      const { getDeps, getTask } = makeDependencyAccessors();
+      const result = await computeBlockedStateCore(dependsUids, taskUid, { getTask, getDeps });
+      if (result.truncated) {
+        console.warn("[BetterTasks] dependency graph too large to verify cycles exhaustively", { taskUid });
       }
-      return { blocked: blockedBy.length > 0, blockedBy, staleUids };
+      return { blocked: result.blocked, blockedBy: result.blockedBy, staleUids: result.staleUids };
     }
 
     async function isTaskBlocked(taskUid, dependsUids) {
@@ -4704,49 +4736,21 @@ export default {
       }
     }
 
-    async function wouldCreateCycle(taskUid, newDepUid, maxDepth = 20) {
+    async function wouldCreateCycle(taskUid, newDepUid) {
       if (taskUid === newDepUid) return true;
       const cacheKey = `${taskUid}|${newDepUid}`;
       if (cycleDetectionCache.has(cacheKey)) return cycleDetectionCache.get(cacheKey);
-      const attrNames = resolveAttributeNames();
-      const visited = new Set();
-      const stack = [newDepUid];
-      let depth = 0;
-      while (stack.length && depth < maxDepth) {
-        const current = stack.pop();
-        if (visited.has(current)) continue;
-        visited.add(current);
-        depth++;
-        const block = await getBlock(current);
-        if (!block) continue;
-        const children = Array.isArray(block.children) ? block.children : [];
-        const childAttrMap = parseAttrsFromChildBlocks(children);
-        const dependsEntry = pickChildAttr(childAttrMap, attrNames.dependsAliases || [], { allowFallback: true });
-        const deps = dependsEntry?.value ? parseDependsValue(dependsEntry.value) : [];
-        for (const dep of deps) {
-          if (dep === taskUid) { cycleDetectionCache.set(cacheKey, true); return true; }
-          if (!visited.has(dep)) stack.push(dep);
-        }
+
+      const { getDeps } = makeDependencyAccessors();
+      const { cycle, truncated } = await wouldCreateCycleCore(taskUid, newDepUid, getDeps);
+      if (truncated) {
+        // The search gave up before it could answer. `cycle: false` means
+        // "don't know", so it must not be cached as a verdict.
+        console.warn("[BetterTasks] cycle check truncated; not caching", { taskUid, newDepUid });
+        return cycle;
       }
-      cycleDetectionCache.set(cacheKey, false);
-      return false;
-    }
-
-    function parseDependsValue(raw) {
-      if (!raw || typeof raw !== "string") return [];
-      return raw
-        .split(",")
-        .map((token) => token.trim())
-        .map((token) => {
-          const m = token.match(/^\(\(([a-zA-Z0-9_-]+)\)\)$/);
-          return m ? m[1] : null;
-        })
-        .filter(Boolean);
-    }
-
-    function formatDependsValue(uids) {
-      if (!Array.isArray(uids)) return "";
-      return uids.map((uid) => `((${uid}))`).join(", ");
+      cycleDetectionCache.set(cacheKey, cycle);
+      return cycle;
     }
 
     function parseRichMetadata(childAttrMap, attrNames = resolveAttributeNames()) {
