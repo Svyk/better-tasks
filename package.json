@@ -5,8 +5,9 @@
   "main": "index.js",
   "scripts": {
     "check:i18n": "node scripts/check-i18n-parity.js",
-    "build": "npm run check:i18n && webpack",
-    "build:watch": "npm run check:i18n && webpack --watch"
+    "test": "node --test tests/*.test.mjs",
+    "build": "npm run check:i18n && npm test && webpack",
+    "build:watch": "npm run check:i18n && npm test && webpack --watch"
   },
   "repository": {
     "type": "git",

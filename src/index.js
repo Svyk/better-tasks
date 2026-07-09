@@ -2,6 +2,75 @@ import iziToast from "izitoast";
 import DashboardApp from "./dashboard/App";
 import { i18n as I18N_MAP } from "./i18n";
 import {
+  DOW_MAP,
+  DOW_IDX,
+  ORD_MAP,
+  DOW_ALIASES,
+  DOW_ORDER,
+  DEFAULT_WEEK_START_CODE,
+  MONTH_MAP,
+  MONTH_KEYWORD_INTERVAL_LOOKUP,
+  ordFromText,
+  dowFromAlias,
+  normalizeWeekStartCode,
+  getDowOrderForWeekStart,
+  getOrderedWeekdayOffsets,
+  monthFromText,
+  expandDowRange,
+  splitList,
+  parseAbbrevSet,
+  normalizeByDayList,
+  keywordIntervalFromText,
+  todayLocal,
+  startOfDayLocal,
+  addDaysLocal,
+  addMonthLocal,
+  startOfWeek,
+  isWeekend,
+  nextDowDate,
+  clampDayInMonth,
+  applyOffsetToDate,
+  advanceMonth,
+  parseRoamDate,
+  stripTimeFromDateText,
+  hasTimeOnlyHint,
+  pickAnchorDateFromTimeHint,
+  parseWeekSpan,
+  parseWeekendSpan,
+  parseRelativeDateText,
+  toDnpTitle,
+  formatDate,
+  parseDateFromText,
+  parseRuleText as parseRuleTextCore,
+  resolveMonthlyInterval,
+  resolveMonthlyDay,
+  computeNextDue as computeNextDueCore,
+  nextWeekday,
+  nextWeekly,
+  nextMonthOnDay,
+  nextMonthOnNthDow,
+  nextMonthLastDay,
+  resolveYearlyMonth,
+  resolveYearlyDay,
+  nextYearlyOnDay,
+  nextYearlyNthDow,
+  nextMonthlyMultiNth,
+  nextMonthlyNthFromEnd,
+  nextMonthlyWeekday,
+  firstWeekdayOfMonth,
+  lastWeekdayOfMonth,
+  nextMonthlyMultiDay,
+  nextMonthlyMixedDay,
+  nthDowOfMonth,
+  nthDowFromEnd,
+  computeNthDowForMonth,
+} from "./core/recurrence";
+import {
+  validateParsedTask,
+  parseTaskLocally as parseTaskLocallyCore,
+  stripSchedulingFromTitle,
+} from "./core/nlp-capture";
+import {
   initProjectStore,
   resetProjectStore,
   refreshProjectOptions,
@@ -364,63 +433,6 @@ function DashboardRoot({ controller, onRequestClose, onHeaderReady, language }) 
   );
 }
 
-const DOW_MAP = {
-  sunday: "SU",
-  monday: "MO",
-  tuesday: "TU",
-  wednesday: "WE",
-  thursday: "TH",
-  friday: "FR",
-  saturday: "SA",
-};
-const DOW_IDX = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
-const ORD_MAP = { "1st": 1, "first": 1, "2nd": 2, "second": 2, "3rd": 3, "third": 3, "4th": 4, "fourth": 4, "last": -1 };
-const DOW_ALIASES = {
-  su: "sunday",
-  sun: "sunday",
-  sunday: "sunday",
-  mo: "monday",
-  mon: "monday",
-  monday: "monday",
-  tu: "tuesday",
-  tue: "tuesday",
-  tues: "tuesday",
-  tuesday: "tuesday",
-  we: "wednesday",
-  wed: "wednesday",
-  wednesday: "wednesday",
-  th: "thursday",
-  thu: "thursday",
-  thur: "thursday",
-  thurs: "thursday",
-  thursday: "thursday",
-  fr: "friday",
-  fri: "friday",
-  friday: "friday",
-  sa: "saturday",
-  sat: "saturday",
-  saturday: "saturday",
-};
-const DOW_ORDER = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
-const DEFAULT_WEEK_START_CODE = "MO";
-const MONTH_MAP = {
-  january: 1, february: 2, march: 3, april: 4, may: 5, june: 6,
-  july: 7, august: 8, september: 9, october: 10, november: 11, december: 12,
-};
-const MONTH_KEYWORD_INTERVAL_LOOKUP = {
-  quarterly: 3,
-  "every quarter": 3,
-  semiannual: 6,
-  "semi annual": 6,
-  semiannually: 6,
-  "semi annually": 6,
-  "semi-annual": 6,
-  "semi-annually": 6,
-  "twice a year": 6,
-  "twice-a-year": 6,
-  "twice per year": 6,
-  "twice-per-year": 6,
-};
 
 export default {
   onload: ({ extensionAPI }) => {
@@ -2486,167 +2498,13 @@ export default {
       return validated;
     }
 
-    function validateParsedTask(raw) {
-      if (!raw || typeof raw !== "object") return { ok: false, error: new Error("Invalid JSON shape") };
-      const title = typeof raw.title === "string" ? raw.title.trim() : "";
-      if (!title) return { ok: false, error: new Error("Missing title") };
-      const task = { title };
-      if (typeof raw.repeatRule === "string" && raw.repeatRule.trim()) task.repeatRule = raw.repeatRule.trim();
-      if (typeof raw.dueDateText === "string" && raw.dueDateText.trim()) task.dueDateText = raw.dueDateText.trim();
-      if (typeof raw.startDateText === "string" && raw.startDateText.trim()) task.startDateText = raw.startDateText.trim();
-      if (typeof raw.deferDateText === "string" && raw.deferDateText.trim()) task.deferDateText = raw.deferDateText.trim();
-      if (typeof raw.project === "string" && raw.project.trim()) task.project = raw.project.trim();
-      if (typeof raw.context === "string" && raw.context.trim()) task.context = raw.context.trim();
-      const allowedRatings = new Set(["low", "medium", "high"]);
-      if (typeof raw.priority === "string" && allowedRatings.has(raw.priority)) task.priority = raw.priority;
-      if (raw.priority === null) task.priority = null;
-      if (typeof raw.energy === "string" && allowedRatings.has(raw.energy)) task.energy = raw.energy;
-      if (raw.energy === null) task.energy = null;
-      return { ok: true, task };
-    }
 
-    // ── Local-first NLP capture ────────────────────────────────────
-    const LOCAL_DATE_KEYWORDS = new Set([
-      "today", "tomorrow", "tmr", "tmrw", "tonight",
-      "next", "this", "early", "mid", "late", "in", "end",
-      "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
-      "mon", "tue", "tues", "wed", "thu", "thurs", "fri", "sat", "sun",
-    ]);
-    const LOCAL_REPEAT_STARTERS = /\b(every\s+.+|daily|weekly|monthly|yearly|annually|biweekly|fortnightly|quarterly|weekdays|weekends)\b/i;
-
+    // ── Local-first NLP capture (core lives in ./core/nlp-capture.js) ──
     function parseTaskLocally(rawText) {
-      if (!rawText || typeof rawText !== "string") return { ok: false };
-      let working = rawText.trim();
-      const result = {};
-      const set = S();
-
-      // Phase A: explicit markers
-      // due:/start:/defer: prefixes — try next 1-4 words, take longest parseable match
-      for (const prefix of ["due", "start", "defer"]) {
-        const re = new RegExp(`\\b${prefix}:\\s*`, "i");
-        const m = working.match(re);
-        if (m) {
-          const afterPrefix = working.slice(m.index + m[0].length);
-          const words = afterPrefix.split(/\s+/).filter(Boolean);
-          let bestLen = 0;
-          let bestParsed = null;
-          for (let len = Math.min(4, words.length); len >= 1; len--) {
-            const candidate = words.slice(0, len).join(" ");
-            // Stop if candidate starts with a known marker
-            if (/^[!~@]|^p:/i.test(candidate)) break;
-            const parsed = parseDateFromText(candidate, set);
-            if (parsed.date) { bestLen = len; bestParsed = parsed; break; }
-          }
-          if (bestParsed) {
-            const key = prefix === "due" ? "dueDateText" : prefix === "start" ? "startDateText" : "deferDateText";
-            result[key] = bestParsed.text || words.slice(0, bestLen).join(" ");
-            const fullMatch = m[0] + words.slice(0, bestLen).join(" ");
-            working = working.replace(fullMatch, " ");
-          }
-        }
-      }
-
-      // !priority (no \b before ! since it's not a word character)
-      const prioMatch = working.match(/(?:^|\s)!(high|medium|low)\b/i);
-      if (prioMatch) {
-        result.priority = prioMatch[1].toLowerCase();
-        working = working.replace(prioMatch[0], " ");
-      }
-
-      // ~energy
-      const energyMatch = working.match(/(?:^|\s)~(high|medium|low)\b/i);
-      if (energyMatch) {
-        result.energy = energyMatch[1].toLowerCase();
-        working = working.replace(energyMatch[0], " ");
-      }
-
-      // p:project
-      const projMatch = working.match(/\bp:("[^"]+"|[\S]+)/i);
-      if (projMatch) {
-        result.project = projMatch[1].replace(/^"|"$/g, "").trim();
-        working = working.replace(projMatch[0], " ");
-      }
-
-      // @context (no \b before @ since it's not a word character)
-      const ctxMatch = working.match(/(?:^|\s)@([\S]+)/);
-      if (ctxMatch) {
-        result.context = ctxMatch[1].trim();
-        working = working.replace(ctxMatch[0], " ");
-      }
-
-      // Phase B: repeat rules
-      const repeatMatch = working.match(LOCAL_REPEAT_STARTERS);
-      if (repeatMatch) {
-        // Try from the match start to end of remaining text, progressively shorter
-        const fromRepeat = working.slice(repeatMatch.index).trim();
-        const words = fromRepeat.split(/\s+/);
-        let found = false;
-        for (let len = words.length; len >= 1; len--) {
-          const candidate = words.slice(0, len).join(" ");
-          const rule = parseRuleText(candidate, set);
-          if (rule) {
-            result.repeatRule = candidate;
-            working = working.slice(0, repeatMatch.index) + " " + words.slice(len).join(" ");
-            found = true;
-            break;
-          }
-        }
-        if (!found) {
-          // Try single keyword forms
-          const singleWord = repeatMatch[1].split(/\s+/)[0].toLowerCase();
-          if (parseRuleText(singleWord, set)) {
-            result.repeatRule = singleWord;
-            working = working.replace(new RegExp(`\\b${singleWord}\\b`, "i"), " ");
-          }
-        }
-      }
-
-      // Phase C: implicit trailing date
-      if (!result.dueDateText) {
-        working = working.replace(/\s+/g, " ").trim();
-        const words = working.split(" ");
-        for (let len = Math.min(4, words.length - 1); len >= 1; len--) {
-          const candidate = words.slice(-len).join(" ");
-          const firstWord = words[words.length - len].toLowerCase();
-          if (!LOCAL_DATE_KEYWORDS.has(firstWord)) continue;
-          const parsed = parseDateFromText(candidate, set);
-          if (parsed.date) {
-            result.dueDateText = parsed.text || candidate;
-            working = words.slice(0, -len).join(" ");
-            break;
-          }
-        }
-      }
-
-      // Phase D: title cleanup
-      const title = working.replace(/\s+/g, " ").replace(/^[\s\-–—,]+|[\s\-–—,]+$/g, "").trim();
-      result.title = title;
-
-      return validateParsedTask(result);
+      return parseTaskLocallyCore(rawText, S());
     }
     // ── End local-first NLP capture ──────────────────────────────────
 
-    function stripSchedulingFromTitle(title, parsed) {
-      const hasRepeat = typeof parsed?.repeatRule === "string" && parsed.repeatRule.trim();
-      const hasDate =
-        typeof parsed?.dueDateText === "string" && parsed.dueDateText.trim() ||
-        typeof parsed?.startDateText === "string" && parsed.startDateText.trim() ||
-        typeof parsed?.deferDateText === "string" && parsed.deferDateText.trim();
-      let t = (title || "").trim();
-      if (!t) return t;
-      if (hasRepeat) {
-        t = t.replace(/,\s*every\b.+$/i, "").trim();
-        t = t.replace(/\bevery\s+.+$/i, "").trim();
-        // Only drop bare cadence words when they are effectively trailing schedule hints (optionally with at/on ...)
-        t = t.replace(/\b(daily|weekly|monthly|yearly|annually|weekdays|weekends)\b\s*(?:(?:at|on)\b.*)?$/i, "").trim();
-      }
-      if (hasDate) {
-        t = t.replace(/\s*(on|by|due|for)\s+(tomorrow|today|next\s+[a-z]+|this\s+[a-z]+)$/i, "").trim();
-        t = t.replace(/\s*(on\s+)?\[\[[^\]]+\]\]\s*$/i, "").trim();
-        t = t.replace(/\s*(tomorrow|today|next\s+[a-z]+)$/i, "").trim();
-      }
-      return t || (title || "").trim();
-    }
 
     const DEBUG_COMPLETION_LOGS =
       (() => {
@@ -8148,30 +8006,6 @@ export default {
       return dnpUid;
     }
 
-    function toDnpTitle(d) {
-      const util = window.roamAlphaAPI?.util;
-      if (util?.dateToPageTitle) {
-        try {
-          return util.dateToPageTitle(d);
-        } catch (err) {
-          console.warn("[RecurringTasks] dateToPageTitle failed, falling back to ISO", err);
-        }
-      }
-      // Fallback: ISO style
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    }
-
-    function parseDateFromText(value, set) {
-      if (typeof value !== "string" || !value.trim()) return { date: null, text: null };
-      const original = value.trim();
-      const cleaned = stripTimeFromDateText(original);
-      let dt = parseRoamDate(cleaned) || parseRelativeDateText(cleaned, set.weekStartCode);
-      if (!dt && hasTimeOnlyHint(original)) {
-        dt = pickAnchorDateFromTimeHint(original, set);
-      }
-      if (!(dt instanceof Date) || Number.isNaN(dt.getTime())) return { date: null, text: null };
-      return { date: dt, text: formatDate(dt, set) };
-    }
 
     async function createQuickTaskFromParsed(parsed, rawInput = "") {
       if (!parsed) return false;
@@ -8316,933 +8150,17 @@ export default {
       return true;
     }
 
-    // === Merged + extended parser ===
+    // === Merged + extended parser (core lives in ./core/recurrence.js) ===
     function parseRuleText(s, options = {}) {
-      if (!s) return null;
-      const t = s.trim().replace(/\s+/g, " ").toLowerCase();
-      const weekStartCode = normalizeWeekStartCode(
-        options.weekStartCode || options.weekStart || getWeekStartSetting()
-      );
-      const ordinalHint = /\b(first|second|third|fourth|fifth|last|day|month)\b/.test(t) || /\d/.test(t);
-      if (!ordinalHint) {
-        const quickSet = parseAbbrevSet(t);
-        if (quickSet) return { kind: "WEEKLY", interval: 1, byDay: quickSet };
-        const looseDays = normalizeByDayList(t, weekStartCode);
-        if (looseDays.length) return { kind: "WEEKLY", interval: 1, byDay: looseDays };
-      }
-
-      const keywordInterval = keywordIntervalFromText(t);
-      if (keywordInterval) {
-        return { kind: "MONTHLY_DAY", interval: keywordInterval };
-      }
-
-      // 0) Simple daily & weekday/weekend anchors
-      if (t === "daily" || t === "every day") return { kind: "DAILY", interval: 1 };
-      if (
-        t === "every other day" || t === "every second day" ||
-        t === "every two days" || t === "second daily"
-      ) return { kind: "DAILY", interval: 2 };
-      if (t === "every third day" || t === "every three days") return { kind: "DAILY", interval: 3 };
-      if (t === "every fourth day" || t === "every four days") return { kind: "DAILY", interval: 4 };
-      if (t === "every fifth day" || t === "every five days") return { kind: "DAILY", interval: 5 };
-
-      if (t === "every weekday" || t === "weekdays" || t === "on weekdays" || t === "business days" || t === "workdays")
-        return { kind: "WEEKDAY" };
-      if (t === "every weekend" || t === "weekend" || t === "weekends")
-        return { kind: "WEEKLY", interval: 1, byDay: ["SA", "SU"] };
-
-      // 1) "every <dow>" (singular/plural) — use your DOW_MAP and aliases
-      const singleDow = Object.keys(DOW_ALIASES).find(
-        a => t === `every ${a}` || t === `every ${a}s`
-      );
-      if (singleDow) return { kind: "WEEKLY", interval: 1, byDay: [dowFromAlias(singleDow)] };
-
-      // 2) "every N days"
-      let m = t.match(/^every (\d+)\s*days?$/);
-      if (m) return { kind: "DAILY", interval: parseInt(m[1], 10) };
-
-      // 3) "every N weekdays/business days"
-      m = t.match(/^every (\d+)\s*(?:weekdays?|business days?)$/);
-      if (m) return { kind: "BUSINESS_DAILY", interval: parseInt(m[1], 10) };
-
-      // 4) Weekly base words + biweekly/fortnightly
-      if (t === "weekly" || t === "every week") return { kind: "WEEKLY", interval: 1, byDay: null };
-      if (t === "every other week" || t === "every second week" || t === "biweekly" || t === "fortnightly" || t === "every fortnight")
-        return { kind: "WEEKLY", interval: 2, byDay: null };
-      m = t.match(/^every\s+(other|second|2nd)\s+([a-z]+)s?$/);
-      if (m) {
-        const dowCode = dowFromAlias(m[2]);
-        if (dowCode) return { kind: "WEEKLY", interval: 2, byDay: [dowCode] };
-      }
-      m = t.match(/^every\s+(\d+)(?:st|nd|rd|th)?\s+([a-z]+)s?$/);
-      if (m) {
-        const intervalNum = parseInt(m[1], 10);
-        const dowCode = dowFromAlias(m[2]);
-        if (dowCode && intervalNum >= 1) {
-          if (intervalNum === 1) return { kind: "WEEKLY", interval: 1, byDay: [dowCode] };
-          return { kind: "WEEKLY", interval: intervalNum, byDay: [dowCode] };
-        }
-      }
-
-      // 5) Weekly with "on …"
-      let weeklyOn = t.match(/^(?:every week|weekly)\s+on\s+(.+)$/);
-      if (weeklyOn) {
-        const byDay = normalizeByDayList(weeklyOn[1], weekStartCode);
-        return { kind: "WEEKLY", interval: 1, byDay: byDay.length ? byDay : null };
-      }
-      // 5b) "every N weeks (on …)?"
-      m = t.match(/^every (\d+)\s*weeks?(?:\s*on\s*(.+))?$/);
-      if (m) {
-        const interval = parseInt(m[1], 10);
-        const byDay = m[2] ? normalizeByDayList(m[2], weekStartCode) : null;
-        return { kind: "WEEKLY", interval, byDay: (byDay && byDay.length) ? byDay : null };
-      }
-      // 5c) "weekly on …"
-      m = t.match(/^weekly on (.+)$/);
-      if (m) {
-        const byDay = normalizeByDayList(m[1], weekStartCode);
-        if (byDay.length) return { kind: "WEEKLY", interval: 1, byDay };
-      }
-      // 5d) Bare "every <list/range/shorthand>"
-      if (t.startsWith("every ")) {
-        const after = t.slice(6).trim();
-        const byDay = normalizeByDayList(after, weekStartCode);
-        if (byDay.length) return { kind: "WEEKLY", interval: 1, byDay };
-        // also accept "every monday(s)" etc. via your earlier path already handled above
-      }
-
-      // 6) Monthly: explicit EOM
-      if (
-        t === "last day of the month" ||
-        t === "last day of each month" ||
-        t === "last day of every month" ||
-        t === "last day each month" ||
-        t === "last day every month" ||
-        t === "eom"
-      )
-        return { kind: "MONTHLY_LAST_DAY" };
-
-      // 7) Monthly: semimonthly / multi-day
-      m = t.match(/^(?:on\s+)?(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\s*(?:,|and|&)\s*(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?(?:each|every)\s+month$/);
-      if (m) {
-        const d1 = parseInt(m[1], 10), d2 = parseInt(m[2], 10);
-        return { kind: "MONTHLY_MULTI_DAY", days: [d1, d2] };
-      }
-      m = t.match(/^(?:on\s+)?(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+and\s+last\s+day\s+(?:of\s+)?(?:each|every)\s+month$/);
-      if (m) {
-        const d = parseInt(m[1], 10);
-        return { kind: "MONTHLY_MIXED_DAY", days: [d], last: true };
-      }
-      m = t.match(/^on\s+the\s+(.+)\s+of\s+(?:each|every)\s+month$/);
-      if (m) {
-        const parts = splitList(m[1].replace(/\b(?:and|&)\b/g, ","));
-        const days = parts
-          .map(x => x.replace(/(st|nd|rd|th)$/i, ""))
-          .map(x => parseInt(x, 10))
-          .filter(n => Number.isInteger(n) && n >= 1 && n <= 31);
-        if (days.length >= 1) return { kind: "MONTHLY_MULTI_DAY", days };
-      }
-
-      // 8) Monthly: your existing single-day variants
-      if (t === "monthly") return { kind: "MONTHLY_DAY", day: todayLocal().getDate() };
-      m = t.match(/^every month on day (\d{1,2})$/);
-      if (m) return { kind: "MONTHLY_DAY", day: parseInt(m[1], 10) };
-      m = t.match(/^(?:the\s+)?(\d{1,2}|1st|2nd|3rd|4th)\s+day\s+of\s+(?:each|every)\s+month$/);
-      if (m) return { kind: "MONTHLY_DAY", day: ordFromText(m[1]) };
-      m = t.match(/^day\s+(\d{1,2})\s+(?:of|in)?\s*(?:each|every)\s+month$/);
-      if (m) return { kind: "MONTHLY_DAY", day: parseInt(m[1], 10) };
-
-      // 9) Monthly: ordinal weekday (incl. compact), plus penultimate/weekday
-      m = t.match(/^(?:every month on the|on the|every month the|the)\s+(1st|first|2nd|second|3rd|third|4th|fourth|last)\s+([a-z]+)$/);
-      if (m) {
-        const nth = m[1].toLowerCase();
-        const dow = dowFromAlias(m[2]);
-        if (dow) return { kind: "MONTHLY_NTH", nth, dow };
-      }
-      m = t.match(/^(?:the\s+)?(1st|first|2nd|second|3rd|third|4th|fourth|last)\s+([a-z]+)\s+(?:of\s+)?(?:each|every)\s+month$/);
-      if (m) {
-        const nth = m[1].toLowerCase();
-        const dow = dowFromAlias(m[2]);
-        if (dow) return { kind: "MONTHLY_NTH", nth, dow };
-      }
-      m = t.match(/^(?:the\s+)?(1st|first|2nd|second|3rd|third|4th|fourth)\s+and\s+(1st|first|2nd|second|3rd|third|4th|fourth)\s+([a-z]+)\s+(?:of\s+)?(?:each|every)\s+month$/);
-      if (m) {
-        const nths = [m[1].toLowerCase(), m[2].toLowerCase()];
-        const dow = dowFromAlias(m[3]);
-        if (dow) return { kind: "MONTHLY_MULTI_NTH", nths, dow };
-      }
-      m = t.match(/^(?:second\s+last|penultimate)\s+([a-z]+)\s+(?:of\s+)?(?:each|every)\s+month$/);
-      if (m) {
-        const dow = dowFromAlias(m[1]);
-        if (dow) return { kind: "MONTHLY_NTH_FROM_END", nth: 2, dow };
-      }
-      m = t.match(/^(first|last)\s+weekday\s+(?:of\s+)?(?:each|every)\s+month$/);
-      if (m) return { kind: "MONTHLY_NTH_WEEKDAY", nth: m[1].toLowerCase() };
-
-      // 10) Every N months (date or ordinal weekday)
-      m = t.match(/^every (\d+)\s*months?(?:\s+on\s+the\s+(\d{1,2})(?:st|nd|rd|th)?)?$/);
-      if (m) {
-        const interval = parseInt(m[1], 10);
-        const day = m[2] ? parseInt(m[2], 10) : todayLocal().getDate();
-        return { kind: "MONTHLY_DAY", interval, day };
-      }
-      m = t.match(/^every (\d+)\s*months?\s+on\s+the\s+(1st|first|2nd|second|3rd|third|4th|fourth|last)\s+([a-z]+)$/);
-      if (m) {
-        const interval = parseInt(m[1], 10);
-        const nth = m[2].toLowerCase();
-        const dow = dowFromAlias(m[3]);
-        if (dow) return { kind: "MONTHLY_NTH", interval, nth, dow };
-      }
-
-      // 11) Quarterly / semiannual / annual synonyms
-      const yearlyKeyword = t.match(/^(annually|yearly|every year)$/);
-      if (yearlyKeyword) {
-        return { kind: "YEARLY" };
-      }
-
-      // 12) Yearly: explicit month/day or ordinal weekday-in-month
-      m = t.match(/^(?:every|each)\s+([a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?$/);
-      if (m) {
-        const month = monthFromText(m[1]);
-        const day = parseInt(m[2], 10);
-        if (month) return { kind: "YEARLY", month, day };
-      }
-      m = t.match(/^every\s+(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]+)$/);
-      if (m) {
-        const day = parseInt(m[1], 10);
-        const month = monthFromText(m[2]);
-        if (month) return { kind: "YEARLY", month, day };
-      }
-      m = t.match(/^on\s+(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]+)\s+(?:every\s+year|annually|yearly)$/);
-      if (m) {
-        const day = parseInt(m[1], 10);
-        const month = monthFromText(m[2]);
-        if (month) return { kind: "YEARLY", month, day };
-      }
-      m = t.match(/^([a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?$/);
-      if (m) {
-        const month = monthFromText(m[1]);
-        const day = parseInt(m[2], 10);
-        if (month && day) return { kind: "YEARLY", month, day };
-      }
-      m = t.match(/^(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]+)\s+(?:every\s+year)?$/);
-      if (m) {
-        const day = parseInt(m[1], 10);
-        const month = monthFromText(m[2]);
-        if (month && day) return { kind: "YEARLY", month, day };
-      }
-      m = t.match(/^(?:the\s+)?(1st|first|2nd|second|3rd|third|4th|fourth|last)\s+([a-z]+)\s+of\s+([a-z]+)\s+(?:every\s+year|annually|yearly)?$/);
-      if (m) {
-        const nth = m[1].toLowerCase();
-        const dow = dowFromAlias(m[2]);
-        const month = monthFromText(m[3]);
-        if (dow && month) return { kind: "YEARLY_NTH", month, nth, dow };
-      }
-
-      // No match
-      return null;
-    }
-
-    function resolveMonthlyInterval(rule) {
-      const raw = Number.parseInt(rule?.interval, 10);
-      return Number.isFinite(raw) && raw > 0 ? raw : 1;
-    }
-
-    function resolveMonthlyDay(rule, meta) {
-      if (Number.isInteger(rule?.day) && rule.day >= 1) return rule.day;
-      const due = meta?.due instanceof Date && !Number.isNaN(meta.due.getTime()) ? meta.due : null;
-      if (due) return due.getDate();
-      return todayLocal().getDate();
+      const weekStartCode = options.weekStartCode || options.weekStart || getWeekStartSetting();
+      return parseRuleTextCore(s, { ...options, weekStartCode });
     }
 
     function computeNextDue(meta, set, depth = 0, ruleOverride = null) {
-      const rule = ruleOverride || parseRuleText(meta.repeat, set);
-      if (rule) {
-        clearRepeatParseFailure(meta?.uid || null);
-      }
-      if (!rule) {
-        console.warn(`[RecurringTasks] Unable to parse repeat rule "${meta.repeat}"`);
-        noteRepeatParseFailure(meta?.uid || null);
-        return null;
-      }
-      const base = set.advanceFrom === "completion" ? todayLocal() : meta.due || todayLocal();
-      let next = null;
-      switch (rule.kind) {
-        case "DAILY":
-          next = addDaysLocal(base, rule.interval || 1);
-          break;
-        case "WEEKDAY":
-          next = nextWeekday(base);
-          break;
-        case "WEEKLY":
-          next = nextWeekly(base, rule, set);
-          break;
-        case "MONTHLY_DAY": {
-          const interval = resolveMonthlyInterval(rule);
-          const day = resolveMonthlyDay(rule, meta);
-          next = nextMonthOnDay(base, day, interval);
-          break;
-        }
-        case "MONTHLY_NTH": {
-          const interval = resolveMonthlyInterval(rule);
-          next = nextMonthOnNthDow(base, rule.nth, rule.dow, interval);
-          break;
-        }
-        case "MONTHLY_LAST_DAY":
-          next = nextMonthLastDay(base);
-          break;
-        case "MONTHLY_MULTI_DAY":
-          next = nextMonthlyMultiDay(base, rule);
-          break;
-        case "MONTHLY_MIXED_DAY":
-          next = nextMonthlyMixedDay(base, rule);
-          break;
-        case "MONTHLY_MULTI_NTH":
-          next = nextMonthlyMultiNth(base, rule);
-          break;
-        case "MONTHLY_NTH_FROM_END":
-          next = nextMonthlyNthFromEnd(base, rule);
-          break;
-        case "MONTHLY_NTH_WEEKDAY":
-          next = nextMonthlyWeekday(base, rule);
-          break;
-        case "YEARLY":
-          next = nextYearlyOnDay(base, rule, meta);
-          break;
-        case "YEARLY_NTH":
-          next = nextYearlyNthDow(base, rule, meta);
-          break;
-        default:
-          next = null;
-      }
-      if (!next) return null;
-      // Skip exception dates (holidays, etc.) stored in rt.exceptions
-      if (meta.exceptions?.length && depth < 36) {
-        const nextIso = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-${String(next.getDate()).padStart(2, "0")}`;
-        const exSet = meta._exceptionSet || (meta._exceptionSet = new Set(meta.exceptions));
-        if (exSet.has(nextIso)) {
-          return computeNextDue({ ...meta, due: next }, set, depth + 1, ruleOverride);
-        }
-      }
-      const today = todayLocal();
-      if (next < today && depth < 36) {
-        const updatedMeta = { ...meta, due: next };
-        return computeNextDue(updatedMeta, set, depth + 1, ruleOverride);
-      }
-      return next;
-    }
-
-    function nextWeekday(d) {
-      let x = addDaysLocal(d, 1);
-      while (isWeekend(x)) x = addDaysLocal(x, 1);
-      return x;
-    }
-    function nextWeekly(base, rule, set) {
-      const interval = Math.max(1, rule.interval || 1);
-      const weekStartCode =
-        (set && (set.weekStartCode || normalizeWeekStartCode(set.weekStart))) || DEFAULT_WEEK_START_CODE;
-      if (!rule.byDay || rule.byDay.length === 0) {
-        return addDaysLocal(base, 7 * interval);
-      }
-      const offsets = getOrderedWeekdayOffsets(rule.byDay, weekStartCode);
-      if (!offsets.length) return addDaysLocal(base, 7 * interval);
-      const weekAnchor = startOfWeek(base, weekStartCode);
-      for (const offset of offsets) {
-        const candidate = addDaysLocal(weekAnchor, offset);
-        if (candidate > base) return candidate;
-      }
-      const nextAnchor = addDaysLocal(weekAnchor, 7 * interval);
-      return addDaysLocal(nextAnchor, offsets[0]);
-    }
-    function nextMonthOnDay(base, day, interval = 1) {
-      const step = Number.isFinite(interval) && interval > 0 ? Math.trunc(interval) : 1;
-      let year = base.getFullYear();
-      let monthIndex = base.getMonth();
-      const currentMonthCandidate = new Date(year, monthIndex, clampDayInMonth(year, monthIndex, day), 12, 0, 0, 0);
-      if (currentMonthCandidate > base && step === 1) return currentMonthCandidate;
-      ({ year, month: monthIndex } = advanceMonth(year, monthIndex, step));
-      const safeDay = clampDayInMonth(year, monthIndex, day);
-      return new Date(year, monthIndex, safeDay, 12, 0, 0, 0);
-    }
-    function nextMonthOnNthDow(base, nthText, dowCode, interval = 1) {
-      const nthValue = ordFromText(nthText);
-      if (nthValue == null) return null;
-      const step = Number.isFinite(interval) && interval > 0 ? Math.trunc(interval) : 1;
-      let year = base.getFullYear();
-      let monthIndex = base.getMonth();
-      let candidate = computeNthDowForMonth(year, monthIndex, nthValue, dowCode);
-      if (candidate && candidate > base && step === 1) {
-        return candidate;
-      }
-      for (let attempts = 0; attempts < 48; attempts++) {
-        ({ year, month: monthIndex } = advanceMonth(year, monthIndex, step));
-        candidate = computeNthDowForMonth(year, monthIndex, nthValue, dowCode);
-        if (candidate) return candidate;
-      }
-      return null;
-    }
-
-    function clampDayInMonth(year, monthIndex, desired) {
-      const lastDay = new Date(year, monthIndex + 1, 0, 12, 0, 0, 0).getDate();
-      const numeric = Number.isFinite(desired) ? Math.trunc(desired) : lastDay;
-      if (numeric < 1) return 1;
-      if (numeric > lastDay) return lastDay;
-      return numeric;
-    }
-
-    function applyOffsetToDate(base, offsetMs) {
-      if (!(base instanceof Date) || Number.isNaN(base.getTime())) return null;
-      if (!Number.isFinite(offsetMs)) return null;
-      const next = new Date(base.getTime() + offsetMs);
-      next.setHours(12, 0, 0, 0);
-      return next;
-    }
-
-    function advanceMonth(year, monthIndex, step) {
-      let nextMonth = monthIndex + step;
-      let nextYear = year;
-      while (nextMonth > 11) {
-        nextMonth -= 12;
-        nextYear += 1;
-      }
-      while (nextMonth < 0) {
-        nextMonth += 12;
-        nextYear -= 1;
-      }
-      return { year: nextYear, month: nextMonth };
-    }
-
-    function nextMonthLastDay(base) {
-      const y = base.getFullYear();
-      const m = base.getMonth();
-      const thisMonthEom = new Date(y, m + 1, 0, 12, 0, 0, 0);
-      const isAtOrAfterEom = base.getDate() >= thisMonthEom.getDate();
-      const targetMonth = isAtOrAfterEom ? m + 2 : m + 1;
-      return new Date(y, targetMonth, 0, 12, 0, 0, 0);
-    }
-
-    function resolveYearlyMonth(rule, meta) {
-      if (Number.isInteger(rule?.month) && rule.month >= 1 && rule.month <= 12) {
-        return Math.trunc(rule.month);
-      }
-      const due = meta?.due instanceof Date && !Number.isNaN(meta.due.getTime()) ? meta.due : null;
-      if (due) return due.getMonth() + 1;
-      return todayLocal().getMonth() + 1;
-    }
-
-    function resolveYearlyDay(rule, meta) {
-      if (Number.isInteger(rule?.day) && rule.day >= 1 && rule.day <= 31) {
-        return Math.trunc(rule.day);
-      }
-      const due = meta?.due instanceof Date && !Number.isNaN(meta.due.getTime()) ? meta.due : null;
-      if (due) return due.getDate();
-      return todayLocal().getDate();
-    }
-
-    function nextYearlyOnDay(base, rule, meta) {
-      const month = resolveYearlyMonth(rule, meta);
-      const day = resolveYearlyDay(rule, meta);
-      if (!month || !day) return null;
-      const monthIndex = month - 1;
-      let year = base.getFullYear();
-      const candidate = new Date(year, monthIndex, clampDayInMonth(year, monthIndex, day), 12, 0, 0, 0);
-      if (candidate > base) return candidate;
-      year += 1;
-      return new Date(year, monthIndex, clampDayInMonth(year, monthIndex, day), 12, 0, 0, 0);
-    }
-
-    function nextYearlyNthDow(base, rule, meta) {
-      const month = resolveYearlyMonth(rule, meta);
-      const nthValue = ordFromText(rule?.nth);
-      const dow = rule?.dow;
-      if (!month || nthValue == null || !dow) return null;
-      const monthIndex = month - 1;
-      let year = base.getFullYear();
-      let candidate = computeNthDowForMonth(year, monthIndex, nthValue, dow);
-      if (candidate && candidate > base) return candidate;
-      for (let i = 0; i < 5; i++) {
-        year += 1;
-        candidate = computeNthDowForMonth(year, monthIndex, nthValue, dow);
-        if (candidate) return candidate;
-      }
-      return null;
-    }
-
-    function nextMonthlyMultiNth(base, rule) {
-      const dow = rule?.dow;
-      const nths = Array.isArray(rule?.nths) ? rule.nths : [];
-      if (!dow || !nths.length) return null;
-      const ordinalValues = nths
-        .map((token) => ordFromText(token))
-        .filter((value) => value != null)
-        .sort((a, b) => a - b);
-      if (!ordinalValues.length) return null;
-      let year = base.getFullYear();
-      let monthIndex = base.getMonth();
-      for (let attempts = 0; attempts < 48; attempts++) {
-        const monthCandidates = ordinalValues
-          .map((nth) => computeNthDowForMonth(year, monthIndex, nth, dow))
-          .filter(Boolean)
-          .sort((a, b) => a - b);
-        for (const candidate of monthCandidates) {
-          if (attempts > 0 || candidate > base) {
-            return candidate;
-          }
-        }
-        ({ year, month: monthIndex } = advanceMonth(year, monthIndex, 1));
-      }
-      return null;
-    }
-
-    function nextMonthlyNthFromEnd(base, rule) {
-      const nth = Number.isInteger(rule?.nth) ? rule.nth : Number.parseInt(rule?.nth, 10);
-      const dow = rule?.dow;
-      if (!nth || !dow) return null;
-      let year = base.getFullYear();
-      let monthIndex = base.getMonth();
-      for (let attempts = 0; attempts < 48; attempts++) {
-        const candidate = nthDowFromEnd(year, monthIndex, dow, nth);
-        if (candidate && (attempts > 0 || candidate > base)) return candidate;
-        ({ year, month: monthIndex } = advanceMonth(year, monthIndex, 1));
-      }
-      return null;
-    }
-
-    function nextMonthlyWeekday(base, rule) {
-      const nth = (rule?.nth || "").toString().toLowerCase();
-      if (nth !== "first" && nth !== "last") return null;
-      let year = base.getFullYear();
-      let monthIndex = base.getMonth();
-      for (let attempts = 0; attempts < 48; attempts++) {
-        const candidate =
-          nth === "first" ? firstWeekdayOfMonth(year, monthIndex) : lastWeekdayOfMonth(year, monthIndex);
-        if (candidate && (attempts > 0 || candidate > base)) return candidate;
-        ({ year, month: monthIndex } = advanceMonth(year, monthIndex, 1));
-      }
-      return null;
-    }
-
-    function firstWeekdayOfMonth(year, monthIndex) {
-      let d = new Date(year, monthIndex, 1, 12, 0, 0, 0);
-      for (let i = 0; i < 7; i++) {
-        if (!isWeekend(d)) return d;
-        d = addDaysLocal(d, 1);
-      }
-      return null;
-    }
-
-    function lastWeekdayOfMonth(year, monthIndex) {
-      let d = new Date(year, monthIndex + 1, 0, 12, 0, 0, 0);
-      for (let i = 0; i < 7; i++) {
-        if (!isWeekend(d)) return d;
-        d = addDaysLocal(d, -1);
-      }
-      return null;
-    }
-
-    function nextMonthlyMultiDay(base, rule) {
-      const list = Array.isArray(rule.days) ? rule.days : [];
-      if (!list.length) return null;
-      const normalized = list
-        .map((token) => (typeof token === "string" ? token.toUpperCase() : token))
-        .map((token) => (token === "LAST" ? "LAST" : Number(token)))
-        .filter((token) => token === "LAST" || (Number.isInteger(token) && token >= 1 && token <= 31))
-        .sort((a, b) => {
-          if (a === "LAST") return 1;
-          if (b === "LAST") return -1;
-          return a - b;
-        });
-      if (!normalized.length) return null;
-      const y = base.getFullYear();
-      const m = base.getMonth();
-      const day = base.getDate();
-      for (const token of normalized) {
-        if (token === "LAST") {
-          const candidate = new Date(y, m + 1, 0, 12, 0, 0, 0);
-          if (candidate.getDate() > day) return candidate;
-        } else if (token > day) {
-          return new Date(y, m, token, 12, 0, 0, 0);
-        }
-      }
-      const nextMonthBase = new Date(y, m + 1, 1, 12, 0, 0, 0);
-      return nextMonthlyMultiDay(nextMonthBase, rule);
-    }
-
-    function nextMonthlyMixedDay(base, rule) {
-      const days = Array.isArray(rule.days) ? rule.days : [];
-      const includeLast = !!rule.last;
-      const combined = [...days];
-      if (includeLast) combined.push("LAST");
-      return nextMonthlyMultiDay(base, { days: combined });
-    }
-    function nthDowOfMonth(first, dowCode, nth) {
-      const target = DOW_IDX.indexOf(dowCode);
-      if (target < 0) return null;
-      let d = new Date(first.getTime());
-      while (d.getDay() !== target) d = addDaysLocal(d, 1);
-      d = addDaysLocal(d, 7 * (nth - 1));
-      if (d.getMonth() !== first.getMonth()) return null;
-      return d;
-    }
-    function nthDowFromEnd(year, monthIndex, dowCode, nthFromEnd) {
-      const target = DOW_IDX.indexOf(dowCode);
-      if (target < 0) return null;
-      let x = new Date(year, monthIndex + 1, 0, 12, 0, 0, 0);
-      let count = 0;
-      while (x.getMonth() === monthIndex) {
-        if (x.getDay() === target) {
-          count += 1;
-          if (count === nthFromEnd) return new Date(x.getTime());
-        }
-        x = addDaysLocal(x, -1);
-      }
-      return null;
-    }
-
-    function computeNthDowForMonth(year, monthIndex, nthValue, dowCode) {
-      if (nthValue == null) return null;
-      if (nthValue > 0) {
-        return nthDowOfMonth(new Date(year, monthIndex, 1, 12, 0, 0, 0), dowCode, nthValue);
-      }
-      return nthDowFromEnd(year, monthIndex, dowCode, Math.abs(nthValue));
-    }
-
-    // ========================= Date utils & formatting =========================
-    function todayLocal() {
-      const d = new Date();
-      d.setHours(12, 0, 0, 0); // noon to dodge DST edges
-      return d;
-    }
-    function startOfDayLocal(d) {
-      return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
-    }
-    function addDaysLocal(d, n) {
-      const x = new Date(d.getTime());
-      x.setDate(x.getDate() + n);
-      return x;
-    }
-    function addMonthLocal(d, n) {
-      const targetMonth = d.getMonth() + n;
-      const maxDay = new Date(d.getFullYear(), targetMonth + 1, 0).getDate();
-      return new Date(d.getFullYear(), targetMonth, Math.min(d.getDate(), maxDay), 12, 0, 0, 0);
-    }
-    function startOfWeek(date, weekStartCode) {
-      const target = weekStartCode && DOW_IDX.includes(weekStartCode) ? weekStartCode : DEFAULT_WEEK_START_CODE;
-      let cursor = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0, 0);
-      for (let i = 0; i < 7 && DOW_IDX[cursor.getDay()] !== target; i++) {
-        cursor = addDaysLocal(cursor, -1);
-      }
-      return cursor;
-    }
-    function isWeekend(d) {
-      const w = d.getDay(); // 0 Sun .. 6 Sat
-      return w === 0 || w === 6;
-    }
-    function parseRoamDate(s) {
-      if (!s) return null;
-      const raw = String(s).trim();
-
-      // 1) [[YYYY-MM-DD]] or bare YYYY-MM-DD
-      let m = raw.match(/^\[\[(\d{4})-(\d{2})-(\d{2})\]\]$/);
-      if (m) return new Date(`${m[1]}-${m[2]}-${m[3]}T12:00:00`);
-      if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return new Date(`${raw}T12:00:00`);
-
-      // 2) [[DNP title]] e.g. [[November 5th, 2025]] or bare DNP title "November 5th, 2025"
-      const dnpTitle = raw.startsWith("[[") && raw.endsWith("]]") ? raw.slice(2, -2) : raw;
-
-      // Prefer Roam's converter if available
-      const util = window.roamAlphaAPI?.util;
-      if (util?.pageTitleToDate) {
-        try {
-          const dt = util.pageTitleToDate(dnpTitle);
-          if (dt instanceof Date && !Number.isNaN(dt.getTime())) {
-            // Normalize to noon to dodge DST edges
-            dt.setHours(12, 0, 0, 0);
-            return dt;
-          }
-        } catch (_) { }
-      }
-
-      // Fallback: strip ordinal ("st/nd/rd/th") and parse "Month Day, Year"
-      const cleaned = dnpTitle.replace(/\b(\d{1,2})(st|nd|rd|th)\b/i, "$1");
-      const parsed = new Date(`${cleaned} 12:00:00`);
-      if (!Number.isNaN(parsed.getTime())) return parsed;
-
-      return null;
-    }
-    function stripTimeFromDateText(text) {
-      if (!text || typeof text !== "string") return text;
-      let t = text.trim();
-      // strip "at 3pm" or "at 15:30"
-      t = t.replace(/\s+at\s+\d{1,2}(:\d{2})?\s*(am|pm)?\b/i, "");
-      // strip trailing "3pm" or "15:30" (require am/pm or colon to avoid stripping "in 3 days")
-      t = t.replace(/\s+\d{1,2}:\d{2}\s*(am|pm)?\b/i, "");
-      t = t.replace(/\s+\d{1,2}\s*(am|pm)\b/i, "");
-      // strip time-of-day words
-      t = t
-        .replace(/\b(morning|afternoon|evening|night)\b/gi, "")
-        .replace(/\b(before|by)\s*\d{1,2}(:\d{2})?\s*(am|pm)?\b/gi, "")
-        .replace(/\b(before|by)\s+lunch\b/gi, "")
-        .replace(/\blunch\b/gi, "")
-        .replace(/\b(noon|midnight)\b/gi, "")
-        .replace(/\b(end of day|eod)\b/gi, "")
-        .replace(/\bat\b\s*$/gi, "")
-        .trim();
-      // strip leading "every "
-      t = t.replace(/^\s*every\s+/i, "").trim();
-      return t.trim();
-    }
-    function hasTimeOnlyHint(text) {
-      if (!text || typeof text !== "string") return false;
-      const raw = text.toLowerCase();
-      return (
-        /\b(before|by)\s*\d{1,2}(:\d{2})?\s*(am|pm)?\b/.test(raw) ||
-        /\b\d{1,2}(:\d{2})?\s*(am|pm)?\b/.test(raw) ||
-        /\b(morning|afternoon|evening|night|end of day|eod|lunch)\b/.test(raw) ||
-        /\b(before|by)\s+lunch\b/.test(raw) ||
-        /\b(noon|midnight)\b/.test(raw)
-      );
-    }
-
-    function pickAnchorDateFromTimeHint(text, set) {
-      if (!text || typeof text !== "string") return todayLocal();
-      const raw = text.toLowerCase();
-      const m =
-        raw.match(/(before|by)?\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/) ||
-        (/\bmorning\b/.test(raw) ? ["", "", "9", "00", "am"] : null) ||
-        (/\bafternoon\b/.test(raw) ? ["", "", "14", "00", ""] : null) ||
-        (/\bevening\b/.test(raw) ? ["", "", "18", "00", ""] : null) ||
-        (/\bnight\b/.test(raw) ? ["", "", "20", "00", ""] : null) ||
-        (/\b(end of day|eod)\b/.test(raw) ? ["", "", "17", "00", ""] : null) ||
-        (/\blunch\b/.test(raw) ? ["", "", "12", "30", ""] : null) ||
-        (/\bnoon\b/.test(raw) ? ["", "", "12", "00", ""] : null) ||
-        (/\bmidnight\b/.test(raw) ? ["", "", "00", "00", ""] : null);
-      if (!m) return todayLocal();
-      let hour = parseInt(m[2], 10);
-      const minute = m[3] ? parseInt(m[3], 10) : 0;
-      const suffix = m[4]?.toLowerCase();
-      if (suffix === "pm" && hour < 12) hour += 12;
-      if (suffix === "am" && hour === 12) hour = 0;
-      const now = new Date();
-      const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, minute, 0, 0);
-      const anchor = now.getTime() <= target.getTime() ? todayLocal() : addDaysLocal(todayLocal(), 1);
-      return anchor;
-    }
-
-    function parseWeekSpan(text, set) {
-      if (!text || typeof text !== "string") return null;
-      const raw = text.toLowerCase();
-      if (!/\b(this week|sometime this week|later this week|start of this week|end of the week|end of week|before the end of the week)\b/.test(raw))
-        return null;
-      const start = startOfWeek(todayLocal(), set?.weekStartCode);
-      const due = addDaysLocal(start, 6);
-      return { start, due };
-    }
-
-    function parseWeekendSpan(text, set) {
-      if (!text || typeof text !== "string") return null;
-      const raw = text.toLowerCase();
-      if (!/\b(this weekend|next weekend)\b/.test(raw)) return null;
-      const now = new Date();
-      const dow = now.getDay(); // 0 Sun .. 6 Sat
-      const baseStart = startOfWeek(todayLocal(), set?.weekStartCode);
-      const isLateSunday = raw.includes("this weekend") && dow === 0 && now.getHours() >= 12;
-      const weekOffset = raw.includes("next weekend") || isLateSunday ? 7 : 0;
-      const saturday = addDaysLocal(baseStart, weekOffset + 5);
-      const sunday = addDaysLocal(saturday, 1);
-      return { start: saturday, due: sunday };
-    }
-    function parseRelativeDateText(s, weekStartCode = DEFAULT_WEEK_START_CODE) {
-      if (!s || typeof s !== "string") return null;
-      let raw = s.trim().toLowerCase();
-      if (!raw) return null;
-      if (raw.startsWith("[[") && raw.endsWith("]]")) {
-        raw = raw.slice(2, -2).trim();
-      }
-      // Compact offset: +3d, +2w, +1m
-      const compactOffsetMatch = raw.match(/^\+(\d+)\s*(d|w|m)$/);
-      if (compactOffsetMatch) {
-        const n = parseInt(compactOffsetMatch[1], 10);
-        const unit = compactOffsetMatch[2];
-        if (unit === "d") return addDaysLocal(todayLocal(), n);
-        if (unit === "w") return addDaysLocal(todayLocal(), n * 7);
-        if (unit === "m") {
-          const now = todayLocal();
-          const targetMonth = now.getMonth() + n;
-          const maxDay = new Date(now.getFullYear(), targetMonth + 1, 0).getDate();
-          return new Date(now.getFullYear(), targetMonth, Math.min(now.getDate(), maxDay), 12, 0, 0, 0);
-        }
-      }
-      if (raw === "today") return todayLocal();
-      if (/^tomor+ow$/.test(raw) || raw === "tmr" || raw === "tmrw") {
-        return addDaysLocal(todayLocal(), 1);
-      }
-      if (raw === "tonight") {
-        return todayLocal();
-      }
-      if (raw === "next month") {
-        const now = todayLocal();
-        const y = now.getFullYear();
-        const m = now.getMonth();
-        const d = new Date(y, m + 1, 1, 12, 0, 0, 0);
-        return d;
-      }
-      const nextMonthMatch = raw.match(/^(early|mid|late)\s+next\s+([a-z]+)$/);
-      if (nextMonthMatch) {
-        const descriptor = nextMonthMatch[1];
-        const monthName = nextMonthMatch[2];
-        const monthIndex = MONTH_MAP[monthName];
-        if (monthIndex != null) {
-          const now = todayLocal();
-          const year = now.getFullYear() + (monthIndex - 1 < now.getMonth() ? 1 : 0);
-          const day = descriptor === "early" ? 5 : descriptor === "mid" ? 15 : 25;
-          return new Date(year, monthIndex - 1, day, 12, 0, 0, 0);
-        }
-      }
-      const earlyMonthMatch = raw.match(/^(?:early|mid|late)\s+([a-z]+)$/);
-      if (earlyMonthMatch) {
-        const monthName = earlyMonthMatch[1];
-        const monthIndex = MONTH_MAP[monthName];
-        if (monthIndex != null) {
-          const now = todayLocal();
-          const year = now.getFullYear() + (monthIndex - 1 < now.getMonth() ? 1 : 0);
-          const day = raw.startsWith("early") ? 5 : raw.startsWith("mid") ? 15 : 25;
-          return new Date(year, monthIndex - 1, day, 12, 0, 0, 0);
-        }
-      }
-      const nextWeekMatch = raw.match(/^(early|mid|late)\s+next\s+week$/);
-      if (nextWeekMatch) {
-        const descriptor = nextWeekMatch[1];
-        const anchor = addDaysLocal(startOfWeek(todayLocal(), weekStartCode), 7);
-        if (descriptor === "early") return anchor;
-        if (descriptor === "mid") return addDaysLocal(anchor, 3);
-        return addDaysLocal(anchor, 5);
-      }
-      if (raw === "next week") {
-        const anchor = todayLocal();
-        const thisWeekStart = startOfWeek(anchor, weekStartCode);
-        return addDaysLocal(thisWeekStart, 7);
-      }
-      const thisWeekMatch = raw.match(/^(?:sometime|later|early)\s+this\s+week$/);
-      if (thisWeekMatch) {
-        const anchor = startOfWeek(todayLocal(), weekStartCode);
-        if (/early/.test(raw)) return anchor;
-        if (/later/.test(raw)) return addDaysLocal(anchor, 4);
-        return anchor;
-      }
-      const thisDowMatch = raw.match(/^this\s+([a-z]+)$/);
-      if (thisDowMatch) {
-        const dowCode = dowFromAlias(thisDowMatch[1]);
-        if (dowCode) {
-          const today = todayLocal();
-          const todayIdx = today.getDay(); // 0 Sun .. 6 Sat
-          const targetIdx = DOW_IDX.indexOf(dowCode);
-          let delta = targetIdx - todayIdx;
-          if (delta <= 0) delta += 7;
-          return addDaysLocal(today, delta);
-        }
-      }
-      const theFirstMatch = raw.match(/^the\s+first(?:\s+of)?\s+every\s+month$/);
-      if (theFirstMatch) {
-        const now = todayLocal();
-        const y = now.getFullYear();
-        const m = now.getMonth();
-        const todayDay = now.getDate();
-        // if past the first, move to next month
-        const targetMonth = todayDay > 1 ? m + 1 : m;
-        return new Date(y, targetMonth, 1, 12, 0, 0, 0);
-      }
-      const nextDowMatch = raw.match(/^next\s+([a-z]+)$/);
-      if (nextDowMatch) {
-        const dowCode = dowFromAlias(nextDowMatch[1]);
-        if (dowCode) return nextDowDate(todayLocal(), dowCode);
-      }
-      const weekdayCode = dowFromAlias(raw);
-      if (weekdayCode) return nextDowDate(todayLocal(), weekdayCode);
-      if (raw === "this weekend") {
-        const now = new Date();
-        const dow = now.getDay(); // 0 Sun .. 6 Sat
-        if (dow === 0 && now.getHours() >= 12) {
-          const anchorNext = addDaysLocal(startOfWeek(todayLocal(), weekStartCode), 7);
-          return addDaysLocal(anchorNext, 5);
-        }
-        const anchor = startOfWeek(todayLocal(), weekStartCode);
-        // weekend = Saturday of this week
-        return addDaysLocal(anchor, 5);
-      }
-      if (raw === "next weekend") {
-        const anchor = addDaysLocal(startOfWeek(todayLocal(), weekStartCode), 7);
-        return addDaysLocal(anchor, 5);
-      }
-
-      // "in N days/weeks/months"
-      const inNMatch = raw.match(/^in\s+(\d+)\s+(days?|weeks?|months?)$/);
-      if (inNMatch) {
-        const n = parseInt(inNMatch[1], 10);
-        const unit = inNMatch[2].replace(/s$/, "");
-        if (unit === "day") return addDaysLocal(todayLocal(), n);
-        if (unit === "week") return addDaysLocal(todayLocal(), n * 7);
-        if (unit === "month") {
-          const now = todayLocal();
-          const targetMonth = now.getMonth() + n;
-          const maxDay = new Date(now.getFullYear(), targetMonth + 1, 0).getDate();
-          return new Date(now.getFullYear(), targetMonth, Math.min(now.getDate(), maxDay), 12, 0, 0, 0);
-        }
-      }
-
-      // "N days/weeks/months from now"
-      const fromNowMatch = raw.match(/^(\d+)\s+(days?|weeks?|months?)\s+from\s+now$/);
-      if (fromNowMatch) {
-        const n = parseInt(fromNowMatch[1], 10);
-        const unit = fromNowMatch[2].replace(/s$/, "");
-        if (unit === "day") return addDaysLocal(todayLocal(), n);
-        if (unit === "week") return addDaysLocal(todayLocal(), n * 7);
-        if (unit === "month") {
-          const now = todayLocal();
-          const targetMonth = now.getMonth() + n;
-          const maxDay = new Date(now.getFullYear(), targetMonth + 1, 0).getDate();
-          return new Date(now.getFullYear(), targetMonth, Math.min(now.getDate(), maxDay), 12, 0, 0, 0);
-        }
-      }
-
-      // "end of week" / "end of this week"
-      if (/^end\s+of\s+(the\s+|this\s+)?week$/.test(raw)) {
-        const ws = startOfWeek(todayLocal(), weekStartCode);
-        return addDaysLocal(ws, 6);
-      }
-
-      // "end of month" / "end of this month"
-      if (/^end\s+of\s+(the\s+|this\s+)?month$/.test(raw)) {
-        const now = todayLocal();
-        return new Date(now.getFullYear(), now.getMonth() + 1, 0, 12, 0, 0, 0);
-      }
-
-      // "end of year" / "end of this year"
-      if (/^end\s+of\s+(the\s+|this\s+)?year$/.test(raw)) {
-        return new Date(todayLocal().getFullYear(), 11, 31, 12, 0, 0, 0);
-      }
-
-      return null;
-    }
-    function nextDowDate(anchor, dowCode) {
-      if (!(anchor instanceof Date) || Number.isNaN(anchor.getTime())) return null;
-      if (!dowCode || !DOW_IDX.includes(dowCode)) return null;
-      const current = DOW_IDX[anchor.getDay()];
-      const curIdx = DOW_IDX.indexOf(current);
-      const targetIdx = DOW_IDX.indexOf(dowCode);
-      let delta = targetIdx - curIdx;
-      if (delta <= 0) delta += 7;
-      return addDaysLocal(anchor, delta);
-    }
-    function formatDate(d, set) {
-      if (set.dateFormat === "ISO") {
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-          d.getDate()
-        ).padStart(2, "0")}`;
-      }
-      // ROAM: always link to the Daily Note Page title, e.g. [[November 5th, 2025]]
-      const title = toDnpTitle(d);
-      return `[[${title}]]`;
+      return computeNextDueCore(meta, set, depth, ruleOverride, {
+        onRuleParsed: (m) => clearRepeatParseFailure(m?.uid || null),
+        onRuleFailed: (m) => noteRepeatParseFailure(m?.uid || null),
+      });
     }
 
     // ========================= Render helpers =========================
@@ -18741,18 +17659,6 @@ export default {
   },
 };
 
-function ordFromText(value) {
-  if (!value) return null;
-  const numeric = Number(value.replace(/(st|nd|rd|th)$/i, ""));
-  if (!Number.isNaN(numeric) && numeric >= 1 && numeric <= 31) return numeric;
-  return ORD_MAP[value.toLowerCase()] ?? null;
-}
-
-function dowFromAlias(token) {
-  if (!token) return null;
-  const norm = (DOW_ALIASES[token.toLowerCase()] || token).toLowerCase();
-  return DOW_MAP[norm] || null;
-}
 
 function tGlobal(path, lang = currentLanguage || "en") {
   const parts = Array.isArray(path) ? path : String(path || "").split(".");
@@ -18790,59 +17696,6 @@ function perfLog(mark, extra = "") {
   console.log(`[BetterTasks][perf] ${mark.label}: ${delta.toFixed(1)}ms${suffix}`);
 }
 
-function normalizeWeekStartCode(value) {
-  if (typeof value === "string") {
-    const code = dowFromAlias(value);
-    if (code) return code;
-  }
-  if (typeof value === "string" && DOW_ORDER.includes(value.toUpperCase())) {
-    return value.toUpperCase();
-  }
-  return DEFAULT_WEEK_START_CODE;
-}
-
-function getDowOrderForWeekStart(weekStartCode) {
-  const code = weekStartCode && DOW_ORDER.includes(weekStartCode) ? weekStartCode : DEFAULT_WEEK_START_CODE;
-  const idx = DOW_ORDER.indexOf(code);
-  if (idx <= 0) return DOW_ORDER;
-  return [...DOW_ORDER.slice(idx), ...DOW_ORDER.slice(0, idx)];
-}
-
-function getOrderedWeekdayOffsets(byDay, weekStartCode) {
-  const order = getDowOrderForWeekStart(weekStartCode);
-  const seen = new Set();
-  const offsets = [];
-  for (const code of Array.isArray(byDay) ? byDay : []) {
-    if (typeof code !== "string") continue;
-    const idx = order.indexOf(code);
-    if (idx === -1 || seen.has(code)) continue;
-    seen.add(code);
-    offsets.push(idx);
-  }
-  offsets.sort((a, b) => a - b);
-  return offsets;
-}
-
-function monthFromText(x) {
-  if (!x) return null;
-  const m = MONTH_MAP[x.toLowerCase()];
-  return m || null;
-}
-
-function expandDowRange(startISO, endISO, dowOrder = DOW_ORDER) {
-  const s = dowOrder.indexOf(startISO), e = dowOrder.indexOf(endISO);
-  if (s === -1 || e === -1) return [];
-  if (s <= e) return dowOrder.slice(s, e + 1);
-  return [...dowOrder.slice(s), ...dowOrder.slice(0, e + 1)]; // wrap
-}
-
-function splitList(str) {
-  return str
-    .replace(/&/g, ",")
-    .replace(/\band\b/gi, ",")
-    .split(/[,\s/]+/)
-    .filter(Boolean);
-}
 
 function createRootCompat(container) {
   if (!container) throw new Error("Container required for dashboard");
@@ -18863,37 +17716,6 @@ function createRootCompat(container) {
   };
 }
 
-// Recognize MWF / TTh sets
-function parseAbbrevSet(token) {
-  const t = token.toLowerCase();
-  if (t === "mwf") return ["MO", "WE", "FR"];
-  if (t === "tth" || t === "tu/th" || t === "t/th") return ["TU", "TH"];
-  return null;
-}
-
-// Turn mixed text, ranges, and shorthands into ISO DOW array
-function normalizeByDayList(raw, weekStartCode = DEFAULT_WEEK_START_CODE) {
-  const tokens = splitList(raw.replace(/[-–—]/g, "-"));
-  const dowOrder = getDowOrderForWeekStart(weekStartCode);
-  let out = [];
-  for (const tok of tokens) {
-    if (tok.includes("-")) {
-      const [a, b] = tok.split("-");
-      const A = dowFromAlias(a), B = dowFromAlias(b);
-      if (A && B) { out.push(...expandDowRange(A, B, dowOrder)); continue; }
-    }
-    const set = parseAbbrevSet(tok);
-    if (set) { out.push(...set); continue; }
-    const d = dowFromAlias(tok);
-    if (d) { out.push(d); continue; }
-  }
-  const seen = new Set();
-  return out.filter(d => (seen.has(d) ? false : (seen.add(d), true)));
-}
-
-function keywordIntervalFromText(text) {
-  return MONTH_KEYWORD_INTERVAL_LOOKUP[text] || null;
-}
 
 function ensureDashboardTopbarButton(retry = true) {
   if (typeof document === "undefined") return;

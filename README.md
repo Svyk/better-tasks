@@ -40,6 +40,7 @@ If you use TODOs in Roam, Better Tasks gives you:
 
 ## ✅ Recent updates
 
+- **Recurrence fixes:** four repeat patterns were resolving incorrectly and have been corrected. `on the 1st and 15th of each month` (and any multi-day rule including the 1st) skipped the 1st whenever the schedule crossed a month boundary — it now lands on every listed day. `every month on the second tuesday` and `every 3 months on the 2nd tuesday` were both being treated as a plain weekly Tuesday, ignoring the monthly interval. `every other tuesday` scheduled weekly rather than fortnightly. And `first monday of september` failed to parse unless you appended `every year`. **If you use any of these patterns, check the next due date on the affected tasks** — open the ⋯ menu → **View series** to see the corrected upcoming occurrences. The recurrence engine now ships with an automated test suite to prevent regressions.
 - **Notes & Activity Log:** attach freeform notes to any task (`BT_attrNotes::` child block, configurable label). An append-only activity log records every change — snoozes, completions, reopens, attribute edits, recurrence spawns — as children of an **Activity log** container block under the task. Events are timestamped, tagged by source (dashboard / inline / API / bulk), and carry structured data for future Smart Suggestions. View the history from the dashboard ⋯ menu → **View activity** (slide-in panel, reverse-chronological). Settings: master enable toggle (on by default), opt-in title-edit logging, optional max-entries cap. Notes appear as a clamped preview under the task title in the dashboard. All stored as plain Roam blocks — fully removed on deconvert.
 - **Focus / Do Mode:** distraction-free single-task execution view launched from the dashboard's **Focus** button or `Better Tasks: Enter Focus Mode` in the Command Palette. Takes a frozen snapshot of your currently-visible filtered and sorted tasks at entry time, then guides you through one task at a time with progress indicator and keyboard-first controls (`j`/`k` navigate, `c` complete with auto-advance, `s`/`Shift+S` snooze +1d/+7d, `Enter` opens in Roam, `r` refresh, `?` shortcut help, `Esc` exit). Subtasks appear as a read-only checklist on the parent card and also get their own focus turn. Blocked tasks render with a 🔒 hint and disable `c` to prevent accidental completion. Live pills: metadata refreshes while the queue order stays stable. Stale-queue banner if any queued task is renamed or deleted, with a one-click rebuild.
 - **Task Templates:** save reusable task configurations with a title pattern, metadata defaults, and a subtask structure. Parameterised titles like `Weekly report for {project}` prompt for values at instantiation. Save any existing task as a template via the block context menu, or build one from scratch via `Create Better Task template`. Instantiate from the Command Palette, the dashboard's Template button, or programmatically via the Extension Tools API. Date defaults support compact relative syntax (`+3d`, `+1w`, `+1m`) plus the full natural language vocabulary (`next Monday`, `end of month`, etc.) and resolve at instantiation time.
@@ -589,6 +590,7 @@ Week start: ranges and some weekly rules respect your **First day of the week** 
 | `every 2 weeks on monday` | every 2nd Monday |
 | `every 3 weeks on fri` | every 3rd Friday |
 | `every 4 weeks on tue, thu` | every 4th week on Tue & Thu |
+| `every other tuesday` \| `every second tuesday` | every 2nd Tuesday (fortnightly) |
 
 ### Monthly - By Day Number (single/multi, clamps, EOM)
 | Example | Meaning |
@@ -624,6 +626,7 @@ Week start: ranges and some weekly rules respect your **First day of the week** 
 - `every March 10`, `on 10 March every year`
 - `annually`, `yearly` (fixed-date anchor)
 - `first Monday of May every year`
+- `first monday of september` (the trailing `every year` is optional)
 
 ### Weekends
 | Example | Meaning |
