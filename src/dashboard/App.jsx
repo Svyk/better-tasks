@@ -10,6 +10,7 @@ import React, {
 import { createPortal } from "react-dom";
 import iziToast from "izitoast";
 import { useVirtualizer, measureElement } from "@tanstack/react-virtual";
+import { applyFilters } from "../core/filters";
 import { i18n as I18N_MAP } from "../i18n";
 import {
   createView,
@@ -402,113 +403,6 @@ function useControllerSnapshot(controller) {
     return unsub;
   }, [controller]);
   return snapshot;
-}
-
-function applyFilters(tasks, filters, query) {
-  const queryText = query.trim().toLowerCase();
-  const recurrenceFilter = new Set(filters.Recurrence || filters.recurrence || []);
-  const startFilter = new Set(filters.Start || filters.start || []);
-  const deferFilter = new Set(filters.Defer || filters.defer || []);
-  const dueFilter = new Set(filters.Due || filters.due || []);
-  const dueArr = Array.from(dueFilter);
-  const dueIncludesUpcoming = dueArr.includes("upcoming");
-  const completionFilter = new Set(filters.Completion || filters.completion || []);
-  const completionArr = Array.from(completionFilter);
-  const completedOnly = completionArr.length === 1 && completionArr[0] === "completed";
-  const priorityFilter = new Set(filters.Priority || filters.priority || []);
-  const energyFilter = new Set(filters.Energy || filters.energy || []);
-  const gtdFilter = new Set(filters.GTD || filters.gtd || []);
-  const completedRange = typeof filters.completedRange === "string" ? filters.completedRange : "any";
-  const upcomingRange = typeof filters.upcomingRange === "string" ? filters.upcomingRange : "any";
-  const projectText = (filters.projectText || "").trim();
-  const waitingText = (filters.waitingText || "").trim().toLowerCase();
-  const contextText = (filters.contextText || "").trim().toLowerCase();
-
-  const isWithinCompletedRange = (date, range) => {
-    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return false;
-    if (range === "any") return true;
-    const now = new Date();
-    const startOfToday = new Date(now.getTime());
-    startOfToday.setHours(0, 0, 0, 0);
-    const dayMs = 24 * 60 * 60 * 1000;
-    const days =
-      range === "1d" ? 1 : range === "7d" ? 7 : range === "30d" ? 30 : range === "90d" ? 90 : null;
-    if (!days) return true;
-    const threshold = new Date(startOfToday.getTime() - (days - 1) * dayMs);
-    return date >= threshold;
-  };
-  const isWithinUpcomingRange = (date, range) => {
-    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return false;
-    if (range === "any") return true;
-    const now = new Date();
-    const startOfToday = new Date(now.getTime());
-    startOfToday.setHours(0, 0, 0, 0);
-    const dayMs = 24 * 60 * 60 * 1000;
-    const days =
-      range === "7d" ? 7 : range === "30d" ? 30 : range === "90d" ? 90 : null;
-    if (!days) return true;
-    if (date < startOfToday) return false;
-    const end = new Date(startOfToday.getTime() + days * dayMs - 1);
-    return date <= end;
-  };
-
-  return tasks.filter((task) => {
-    if (completionFilter.size) {
-      const value = task.isCompleted ? "completed" : "open";
-      if (!completionFilter.has(value)) return false;
-    }
-    if (completedOnly && completedRange !== "any" && task.isCompleted) {
-      if (!isWithinCompletedRange(task.completedAt, completedRange)) return false;
-    }
-    if (recurrenceFilter.size && !recurrenceFilter.has(task.recurrenceBucket)) return false;
-    if (startFilter.size && !startFilter.has(task.startBucket)) return false;
-    if (deferFilter.size && !deferFilter.has(task.deferBucket)) return false;
-    if (dueFilter.size && !dueFilter.has(task.dueBucket)) return false;
-    if (dueIncludesUpcoming && upcomingRange !== "any" && task.dueBucket === "upcoming") {
-      if (!isWithinUpcomingRange(task.dueAt, upcomingRange)) return false;
-    }
-    const meta = task.metadata || {};
-    if (priorityFilter.size && !priorityFilter.has(meta.priority || "")) return false;
-    if (energyFilter.size && !energyFilter.has(meta.energy || "")) return false;
-    const gtdValue = (meta.gtd || "").toLowerCase();
-    if (gtdFilter.size && !gtdFilter.has(gtdValue)) return false;
-    const blockedFilter = new Set(filters.Blocked || filters.blocked || []);
-    if (blockedFilter.size) {
-      const value = task.isBlocked ? "blocked" : "actionable";
-      if (!blockedFilter.has(value)) return false;
-    }
-    const stalledFilter = new Set(filters.Stalled || []);
-    if (stalledFilter.size) {
-      const stalledDays = typeof filters.stalledDays === "number" ? filters.stalledDays : 14;
-      const now = new Date();
-      const startOfTodayStalled = new Date(now.getTime());
-      startOfTodayStalled.setHours(0, 0, 0, 0);
-      const stalledThreshold = startOfTodayStalled.getTime() - stalledDays * 24 * 60 * 60 * 1000;
-      const hasEditTime = typeof task.editedAt === "number" && task.editedAt > 0;
-      const isStalled = !task.isCompleted &&
-        (!hasEditTime || task.editedAt < stalledThreshold);
-      if (stalledFilter.has("stalled") && !isStalled) return false;
-      if (stalledFilter.has("active") && isStalled) return false;
-    }
-    if (projectText) {
-      const hay = (meta.project || "").trim();
-      if (hay.toLowerCase() !== projectText.toLowerCase()) return false;
-    }
-    if (waitingText) {
-      const hay = (meta.waitingFor || "").toLowerCase();
-      if (!hay.includes(waitingText)) return false;
-    }
-    if (contextText) {
-      const ctxs = Array.isArray(meta.context) ? meta.context : [];
-      const matches = ctxs.some((c) => typeof c === "string" && c.toLowerCase().includes(contextText));
-      if (!matches) return false;
-    }
-    if (queryText) {
-      const haystack = `${task.title} ${task.pageTitle || ""} ${task.text}`.toLowerCase();
-      if (!haystack.includes(queryText)) return false;
-    }
-    return true;
-  });
 }
 
 function groupTasks(tasks, grouping, options = {}) {
