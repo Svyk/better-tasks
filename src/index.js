@@ -71,6 +71,12 @@ import {
   stripSchedulingFromTitle,
 } from "./core/nlp-capture";
 import {
+  buildCSVContent,
+  buildJSONContent,
+  buildICSContent,
+  hasExportableDate,
+} from "./core/export";
+import {
   initProjectStore,
   resetProjectStore,
   refreshProjectOptions,
@@ -5372,13 +5378,12 @@ export default {
                 project: args.project,
               });
               if (format === "csv") {
-                const rows = [CSV_HEADERS.join(",")];
-                for (const task of data) rows.push(taskToCSVRow(task).map(escapeCSV).join(","));
-                return { format: "csv", count: data.length, content: rows.join("\n") };
+                const { content, count } = buildCSVContent(data);
+                return { format: "csv", count, content };
               }
               if (format === "ics") {
-                const icsResult = buildICSContent(data);
-                return { format: "ics", count: icsResult.count, skipped: icsResult.skipped, content: icsResult.content };
+                const { content, count, skipped } = buildICSContent(data);
+                return { format: "ics", count, skipped, content };
               }
               return { format: "json", count: data.length, tasks: data };
             })
@@ -9548,139 +9553,29 @@ export default {
 
     async function exportTasksJSON(options = {}) {
       const data = await buildExportData(options);
-      const json = JSON.stringify(data, null, 2);
+      const { content } = buildJSONContent(data);
       const date = new Date().toISOString().slice(0, 10);
-      triggerBrowserDownload(json, `better-tasks-${date}.json`, "application/json");
+      triggerBrowserDownload(content, `better-tasks-${date}.json`, "application/json");
       toast(`Exported ${data.length} tasks as JSON.`);
       return data;
     }
 
-    const CSV_HEADERS = [
-      "uid", "title", "status", "due", "start", "defer", "completed",
-      "repeat", "project", "waiting_for", "context", "priority", "energy",
-      "gtd", "depends", "parent", "page_title", "is_blocked", "is_subtask",
-      "parent_task_uid", "subtask_uids"
-    ];
-
-    function escapeCSV(value) {
-      const s = String(value);
-      if (s.includes(",") || s.includes('"') || s.includes("\n")) {
-        return `"${s.replace(/"/g, '""')}"`;
-      }
-      return s;
-    }
-
-    function taskToCSVRow(task) {
-      const a = task.attributes || {};
-      return [
-        task.uid,
-        task.title,
-        task.status,
-        task.due || "",
-        task.start || "",
-        task.defer || "",
-        task.completed || "",
-        a.repeat || "",
-        a.project || "",
-        a.waitingFor || "",
-        (a.context || []).join("; "),
-        a.priority || "",
-        a.energy || "",
-        a.gtd || "",
-        (a.depends || []).join("; "),
-        a.parent || "",
-        task.page_title || "",
-        task.is_blocked ? "true" : "false",
-        task.is_subtask ? "true" : "false",
-        task.parent_task_uid || "",
-        (task.subtask_uids || []).join("; "),
-      ];
-    }
-
     async function exportTasksCSV(options = {}) {
       const data = await buildExportData(options);
-      const rows = [CSV_HEADERS.join(",")];
-      for (const task of data) {
-        rows.push(taskToCSVRow(task).map(escapeCSV).join(","));
-      }
-      const csv = rows.join("\n");
+      const { content } = buildCSVContent(data);
       const date = new Date().toISOString().slice(0, 10);
-      triggerBrowserDownload(csv, `better-tasks-${date}.csv`, "text/csv");
+      triggerBrowserDownload(content, `better-tasks-${date}.csv`, "text/csv");
       toast(`Exported ${data.length} tasks as CSV.`);
       return data;
     }
 
-    function toICSDate(isoDate) {
-      if (!isoDate) return null;
-      return isoDate.replace(/-/g, "");
-    }
-
     async function exportTasksICS(options = {}) {
       const data = await buildExportData(options);
-      const withDates = data.filter((t) => t.due || t.start || t.defer);
-      const lines = [
-        "BEGIN:VCALENDAR",
-        "VERSION:2.0",
-        "PRODID:-//BetterTasks//Roam Research//EN",
-        "X-WR-CALNAME:Better Tasks",
-      ];
-      for (const task of withDates) {
-        const eventDate = task.due || task.defer || task.start;
-        if (!eventDate) continue;
-        const dtStart = toICSDate(eventDate);
-        // All-day event: DTEND = DTSTART + 1 day (per iCal spec)
-        const nextDay = new Date(eventDate + "T12:00:00");
-        nextDay.setDate(nextDay.getDate() + 1);
-        const dtEnd = `${nextDay.getFullYear()}${String(nextDay.getMonth() + 1).padStart(2, "0")}${String(nextDay.getDate()).padStart(2, "0")}`;
-        const status = task.status === "DONE" ? " [DONE]" : "";
-        const project = task.attributes?.project ? ` [${task.attributes.project}]` : "";
-        lines.push("BEGIN:VEVENT");
-        lines.push(`UID:${task.uid}@bettertasks.roam`);
-        lines.push(`DTSTART;VALUE=DATE:${dtStart}`);
-        lines.push(`DTEND;VALUE=DATE:${dtEnd}`);
-        lines.push(`SUMMARY:${(task.title || task.text || "").replace(/\n/g, " ")}${status}${project}`);
-        if (task.attributes?.project) lines.push(`CATEGORIES:${task.attributes.project}`);
-        if (task.status === "DONE") lines.push("STATUS:CONFIRMED");
-        else lines.push("STATUS:TENTATIVE");
-        lines.push("TRANSP:TRANSPARENT");
-        lines.push("END:VEVENT");
-      }
-      lines.push("END:VCALENDAR");
-      const ics = lines.join("\r\n");
+      const { content, count, skipped } = buildICSContent(data);
       const date = new Date().toISOString().slice(0, 10);
-      triggerBrowserDownload(ics, `better-tasks-${date}.ics`, "text/calendar");
-      toast(`Exported ${withDates.length} tasks as ICS (${data.length - withDates.length} skipped \u2014 no dates).`);
-      return withDates;
-    }
-
-    function buildICSContent(data) {
-      const withDates = data.filter((t) => t.due || t.start || t.defer);
-      const lines = [
-        "BEGIN:VCALENDAR", "VERSION:2.0",
-        "PRODID:-//BetterTasks//Roam Research//EN", "X-WR-CALNAME:Better Tasks",
-      ];
-      for (const task of withDates) {
-        const eventDate = task.due || task.defer || task.start;
-        if (!eventDate) continue;
-        const dtStart = toICSDate(eventDate);
-        const nextDay = new Date(eventDate + "T12:00:00");
-        nextDay.setDate(nextDay.getDate() + 1);
-        const dtEnd = `${nextDay.getFullYear()}${String(nextDay.getMonth() + 1).padStart(2, "0")}${String(nextDay.getDate()).padStart(2, "0")}`;
-        const status = task.status === "DONE" ? " [DONE]" : "";
-        const project = task.attributes?.project ? ` [${task.attributes.project}]` : "";
-        lines.push("BEGIN:VEVENT");
-        lines.push(`UID:${task.uid}@bettertasks.roam`);
-        lines.push(`DTSTART;VALUE=DATE:${dtStart}`);
-        lines.push(`DTEND;VALUE=DATE:${dtEnd}`);
-        lines.push(`SUMMARY:${(task.title || task.text || "").replace(/\n/g, " ")}${status}${project}`);
-        if (task.attributes?.project) lines.push(`CATEGORIES:${task.attributes.project}`);
-        if (task.status === "DONE") lines.push("STATUS:CONFIRMED");
-        else lines.push("STATUS:TENTATIVE");
-        lines.push("TRANSP:TRANSPARENT");
-        lines.push("END:VEVENT");
-      }
-      lines.push("END:VCALENDAR");
-      return { content: lines.join("\r\n"), count: withDates.length, skipped: data.length - withDates.length };
+      triggerBrowserDownload(content, `better-tasks-${date}.ics`, "text/calendar");
+      toast(`Exported ${count} tasks as ICS (${skipped} skipped \u2014 no dates).`);
+      return data.filter(hasExportableDate);
     }
 
     // ── Deconvert (Clean Exit) ─────────────────────────────────────
