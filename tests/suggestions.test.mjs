@@ -170,10 +170,28 @@ test("load-balance suggests moving the safest task from the peak day to an empty
   // Lowest priority wins, uid tiebreak: c and d are both "low", c sorts first.
   assert.equal(s.taskUid, "c");
   assert.equal(s.id, "load-balance:c");
-  // First empty day in the window (Fri 10 July, the day after NOW).
-  assert.equal(s.action.payload.dueISO, "2026-07-10");
+  // Empty day nearest the peak (Mon 13 July): Sun 12 July at distance 1.
+  assert.equal(s.action.payload.dueISO, "2026-07-12");
   assert.equal(s.params.fromCount, 5);
   assert.equal(s.params.fromISO, "2026-07-13");
+});
+
+test("load-balance prefers the later empty day on a distance tie", () => {
+  // Peak Mon 13 July (4 tasks); Sun 12 and Tue 14 occupied, so the nearest
+  // empty days are Sat 11 and Wed 15, both at distance 2 — Wed must win.
+  const tasks = [
+    task({ uid: "a", dueAt: d(2026, 7, 13) }),
+    task({ uid: "b", dueAt: d(2026, 7, 13) }),
+    task({ uid: "c", dueAt: d(2026, 7, 13) }),
+    task({ uid: "d", dueAt: d(2026, 7, 13) }),
+    task({ uid: "e", dueAt: d(2026, 7, 12) }),
+    task({ uid: "f", dueAt: d(2026, 7, 14) }),
+    task({ uid: "g", dueAt: d(2026, 7, 10) }),
+    task({ uid: "h", dueAt: d(2026, 7, 16) }),
+  ];
+  const out = ruleLoadBalance(tasks, OPTS);
+  assert.equal(out.length, 1);
+  assert.equal(out[0].action.payload.dueISO, "2026-07-15");
 });
 
 test("load-balance is deterministic", () => {
@@ -225,7 +243,7 @@ test("load-balance counts recurring/blocked load but never moves it", () => {
 test("load-balance skips candidates deferred past the target day", () => {
   const tasks = loadedWeek().map((t) =>
     t.uid === "c" || t.uid === "d"
-      ? { ...t, deferUntil: d(2026, 7, 12) } // after the Fri 10 July target
+      ? { ...t, deferUntil: d(2026, 7, 13) } // after the Sun 12 July target
       : t
   );
   const out = ruleLoadBalance(tasks, OPTS);

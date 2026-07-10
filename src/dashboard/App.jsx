@@ -3182,6 +3182,21 @@ export default function DashboardApp({ controller, onRequestClose, onHeaderReady
     () => controller?.getSuggestionSettings?.()?.enabled !== false,
     [controller]
   );
+  // Warm the badge shortly after the dashboard opens: suggestions otherwise
+  // compute only on panel open, which left the badge empty after a Roam
+  // reload. Deferred so it never competes with the initial task load.
+  const suggestionsWarmupRan = useRef(false);
+  useEffect(() => {
+    if (!suggestionsEnabled || suggestionsWarmupRan.current) return undefined;
+    if (controller?.getSuggestionsCached?.()) return undefined; // already warm
+    suggestionsWarmupRan.current = true;
+    const timer = setTimeout(() => {
+      controller?.computeSuggestions?.()
+        .then((result) => setSuggestionsCount(result?.suggestions?.length ?? 0))
+        .catch(() => {});
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [controller, suggestionsEnabled]);
   const [focusModeOpen, setFocusModeOpen] = useState(false);
   const [focusQueue, setFocusQueue] = useState(null);
 

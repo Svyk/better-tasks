@@ -14711,6 +14711,8 @@ export default {
         return series;
       }
 
+      let suggestionsComputePromise = null;
+
       async function computeDashboardSuggestions(options = {}) {
         const includeDismissed = options.includeDismissed === true;
         if (
@@ -14720,6 +14722,19 @@ export default {
         ) {
           return suggestionsCache.data;
         }
+        // The badge warm-up and a panel open can race — share one compute.
+        if (!includeDismissed && suggestionsComputePromise) return suggestionsComputePromise;
+        const run = computeDashboardSuggestionsUncached(includeDismissed);
+        if (!includeDismissed) {
+          suggestionsComputePromise = run.finally(() => {
+            suggestionsComputePromise = null;
+          });
+          return suggestionsComputePromise;
+        }
+        return run;
+      }
+
+      async function computeDashboardSuggestionsUncached(includeDismissed) {
         const suggestionSettings = getSuggestionSettings();
         const logEnabled = activityLogEnabled();
         if (!suggestionSettings.enabled) {

@@ -177,13 +177,27 @@ export function ruleLoadBalance(tasks, opts) {
   if (total < opts.loadMinTotal) return [];
 
   let peakISO = null;
-  let emptyISO = null;
   for (const iso of dayISOs) {
-    const count = byDay.get(iso).length;
-    if (count === 0 && emptyISO === null) emptyISO = iso;
-    if (peakISO === null || count > byDay.get(peakISO).length) peakISO = iso;
+    if (peakISO === null || byDay.get(iso).length > byDay.get(peakISO).length) peakISO = iso;
   }
-  if (emptyISO === null || byDay.get(peakISO).length < opts.loadMinPeak) return [];
+  if (byDay.get(peakISO).length < opts.loadMinPeak) return [];
+
+  // Target: the empty day nearest the peak day, so the move disturbs the
+  // task's schedule as little as possible. On a tie, prefer the later day —
+  // pulling a deadline earlier shortens its lead time for no benefit.
+  const peakIdx = dayISOs.indexOf(peakISO);
+  let emptyIdx = -1;
+  let bestDist = Infinity;
+  for (let idx = 0; idx < dayISOs.length; idx += 1) {
+    if (byDay.get(dayISOs[idx]).length !== 0) continue;
+    const dist = Math.abs(idx - peakIdx);
+    if (dist < bestDist || (dist === bestDist && idx > peakIdx)) {
+      bestDist = dist;
+      emptyIdx = idx;
+    }
+  }
+  if (emptyIdx === -1) return [];
+  const emptyISO = dayISOs[emptyIdx];
 
   const candidates = byDay
     .get(peakISO)
@@ -204,7 +218,7 @@ export function ruleLoadBalance(tasks, opts) {
 
   const pick = candidates[0];
   const fromDate = pick.dueAt;
-  const toDate = addDays(startOfToday, dayISOs.indexOf(emptyISO) + 1);
+  const toDate = addDays(startOfToday, emptyIdx + 1);
   return [
     {
       id: `load-balance:${pick.uid}`,
