@@ -696,6 +696,7 @@ Better Tasks registers tools on `window.RoamExtensionTools["better-tasks"]` so o
 | `bt_bulk_snooze` | Snooze multiple tasks by shifting defer/start/due dates forward |
 | `bt_get_analytics` | Task analytics: overdue count, completion rate, velocity by project and time period |
 | `bt_get_analytics_detailed` | Full analytics: summary, completion over time, time-to-completion distribution, overdue frequency, project breakdown, recurring adherence, busiest-days heatmap |
+| `bt_get_suggestions` | Advisory suggestions from local heuristics: snooze counts, weekday patterns, load balancing, stalled tasks, recurring adherence. Read-only. |
 | `bt_get_task_by_uid` | Fetch a single task by its block UID with full details |
 | `bt_export` | Export tasks as JSON, CSV, or ICS with optional status/project filters (returns data, no browser download) |
 | `bt_list_templates` | List saved task templates with their parameters |

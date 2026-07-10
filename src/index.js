@@ -5210,7 +5210,7 @@ export default {
       const registry = (window.RoamExtensionTools = window.RoamExtensionTools || {});
       registry[EXTENSION_TOOLS_ID] = {
         name: "Better Tasks",
-        version: "1.1",
+        version: "1.2",
         tools: [
           {
             name: "bt_get_projects",
@@ -5495,6 +5495,36 @@ export default {
                 return { error: "Dashboard controller not initialised. Open the dashboard first." };
               }
               return await activeDashboardController.computeAnalytics(period);
+            })
+          },
+          {
+            name: "bt_get_suggestions",
+            readOnly: true,
+            description: "Advisory task suggestions from local heuristics: snooze counts, weekday completion patterns, weekly load balancing, stalled tasks, and recurring adherence. Read-only — never applies changes.",
+            parameters: {
+              type: "object",
+              properties: {
+                include_dismissed: {
+                  type: "boolean",
+                  description: "Include suggestions currently suppressed by a dismissal cooldown. Default false."
+                },
+                max_results: { type: "number", description: "Maximum suggestions to return. Default 15." },
+              }
+            },
+            execute: async (args = {}) => runToolSafely("bt_get_suggestions", args, async () => {
+              if (!activeDashboardController?.computeSuggestions) {
+                return { error: "Dashboard controller not initialised. Open the dashboard first." };
+              }
+              const result = await activeDashboardController.computeSuggestions({
+                includeDismissed: args.include_dismissed === true,
+              });
+              const maxResults = clampToolLimit(args.max_results, 15, 50);
+              const suggestions = (result?.suggestions || []).slice(0, maxResults);
+              return {
+                suggestions,
+                count: suggestions.length,
+                activity_log_enabled: result?.activityLogEnabled !== false,
+              };
             })
           },
           {
