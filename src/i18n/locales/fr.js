@@ -602,10 +602,10 @@ const locale = {
     activityLogOff: "Le journal d'activité est désactivé, les suggestions basées sur les reports ne sont donc pas disponibles.",
     rules: {
       snoozeSomeday: "Reportée {{count}} fois — envisagez de la déplacer vers Un Jour / Peut-être.",
-      dowPattern: "Généralement terminée le {{weekday}} ({{percent}} % de {{count}} achèvements) — replanifier au {{weekday}} ?",
+      dowPattern: "Généralement terminée le {{weekday}} ({{percent}} % des {{count}} occurrences) — replanifier au {{weekday}} ?",
       loadBalance: "Le {{fromWeekday}}, {{fromCount}} tâches arrivent à échéance et aucune le {{toWeekday}} — déplacer cette tâche ?",
       stalledSomeday: "Aucune activité depuis au moins {{days}} jours — envisagez de la déplacer vers Un Jour / Peut-être.",
-      recurringAdherence: "Seulement {{rate}} % de {{completed}} occurrences terminées à temps — revoir la règle de répétition ?",
+      recurringAdherence: "Seulement {{rate}} % des {{count}} occurrences datées ont été terminées à temps — revoir la règle de répétition ?",
     },
     actions: {
       setGtd: "Déplacer vers Un Jour / Peut-être",

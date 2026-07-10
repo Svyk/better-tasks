@@ -290,11 +290,13 @@ test("stalled-someday skips recurring, blocked, completed, and someday tasks", (
 // ========================= recurring-adherence =========================
 
 test("recurring-adherence triggers at the rate boundary", () => {
-  const bad = series({ stats: { onTimeRate: 50, totalCompleted: 6, totalWithDue: 6 } });
+  // totalCompleted deliberately differs from totalWithDue: the displayed
+  // count must be the population the rate was computed over (with-due).
+  const bad = series({ stats: { onTimeRate: 50, totalCompleted: 8, totalWithDue: 6 } });
   const s = ruleRecurringAdherence(bad, T);
   assert.ok(s);
   assert.equal(s.id, "recurring-adherence:series1");
-  assert.deepEqual(s.params, { rate: 50, completed: 6 });
+  assert.deepEqual(s.params, { rate: 50, count: 6 });
   assert.equal(s.action.type, "edit-repeat");
   const okSeries = series({ stats: { onTimeRate: 51, totalCompleted: 6, totalWithDue: 6 } });
   assert.equal(ruleRecurringAdherence(okSeries, T), null);

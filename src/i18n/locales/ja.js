@@ -605,7 +605,7 @@ const locale = {
       dowPattern: "通常{{weekday}}に完了しています（{{count}}件の完了のうち{{percent}}%）— {{weekday}}に変更しますか？",
       loadBalance: "{{fromWeekday}}は{{fromCount}}件が期限、{{toWeekday}}は0件です — このタスクを移動しますか？",
       stalledSomeday: "{{days}}日以上活動がありません — いつか / たぶんへの移動を検討してください。",
-      recurringAdherence: "{{completed}}回の完了のうち期限内は{{rate}}%のみ — 繰り返しルールを編集しますか？",
+      recurringAdherence: "期限付きの{{count}}回のうち期限内に完了したのは{{rate}}%のみ — 繰り返しルールを編集しますか？",
     },
     actions: {
       setGtd: "いつか / たぶんへ移動",

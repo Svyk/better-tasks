@@ -605,7 +605,7 @@ const locale = {
       dowPattern: "Usually completed on {{weekday}} ({{percent}}% of {{count}} completions) — reschedule to {{weekday}}?",
       loadBalance: "{{fromWeekday}} has {{fromCount}} tasks due, while {{toWeekday}} has none — move this task?",
       stalledSomeday: "No activity for at least {{days}} days — consider moving it to Someday/Maybe.",
-      recurringAdherence: "Only {{rate}}% of {{completed}} occurrences were completed on time — review the repeat rule?",
+      recurringAdherence: "Only {{rate}}% of {{count}} dated occurrences were completed on time — review the repeat rule?",
     },
     actions: {
       setGtd: "Move to Someday/Maybe",

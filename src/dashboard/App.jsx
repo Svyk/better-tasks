@@ -1929,7 +1929,6 @@ function SuggestionsPanel({ controller, language, onClose, onCountChange }) {
       .replace(/\{\{percent\}\}/g, sub(p.percent))
       .replace(/\{\{days\}\}/g, sub(p.days))
       .replace(/\{\{rate\}\}/g, sub(p.rate))
-      .replace(/\{\{completed\}\}/g, sub(p.completed))
       .replace(/\{\{fromCount\}\}/g, sub(p.fromCount))
       .replace(/\{\{weekday\}\}/g, p.weekday == null ? "" : weekdayName(p.weekday))
       .replace(/\{\{fromWeekday\}\}/g, p.fromWeekday == null ? "" : weekdayName(p.fromWeekday))

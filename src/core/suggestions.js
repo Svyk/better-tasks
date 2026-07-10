@@ -290,7 +290,9 @@ export function ruleRecurringAdherence(series, t) {
     title: series.title,
     params: {
       rate: Math.round(stats.onTimeRate),
-      completed: stats.totalCompleted || 0,
+      // Same population the rate is computed over: completions WITH a due
+      // date. totalCompleted would overcount when undated completions exist.
+      count: stats.totalWithDue,
     },
     action: { type: "edit-repeat", payload: {} },
     score: 80,

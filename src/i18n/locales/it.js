@@ -605,7 +605,7 @@ const locale = {
       dowPattern: "Di solito completata di {{weekday}} ({{percent}}% di {{count}} completamenti) — riprogrammare a {{weekday}}?",
       loadBalance: "{{fromWeekday}} ha {{fromCount}} task in scadenza e {{toWeekday}} nessuna — spostare questa task?",
       stalledSomeday: "Nessuna attività da almeno {{days}} giorni — valuta di spostarla in Un giorno / Forse.",
-      recurringAdherence: "Solo il {{rate}}% di {{completed}} occorrenze è stato completato in tempo — modificare la regola di ripetizione?",
+      recurringAdherence: "Solo il {{rate}}% di {{count}} occorrenze con scadenza è stato completato in tempo — modificare la regola di ripetizione?",
     },
     actions: {
       setGtd: "Sposta in Un giorno / Forse",

@@ -605,7 +605,7 @@ const locale = {
       dowPattern: "Meist am {{weekday}} erledigt ({{percent}} % von {{count}} Erledigungen) — auf {{weekday}} umplanen?",
       loadBalance: "Am {{fromWeekday}} sind {{fromCount}} Aufgaben fällig, am {{toWeekday}} keine — diese Aufgabe verschieben?",
       stalledSomeday: "Seit mindestens {{days}} Tagen keine Aktivität — vielleicht nach Irgendwann / Vielleicht verschieben?",
-      recurringAdherence: "Nur {{rate}} % von {{completed}} Wiederholungen pünktlich erledigt — Wiederholungsregel bearbeiten?",
+      recurringAdherence: "Nur {{rate}} % von {{count}} terminierten Wiederholungen pünktlich erledigt — Wiederholungsregel bearbeiten?",
     },
     actions: {
       setGtd: "Nach Irgendwann / Vielleicht verschieben",

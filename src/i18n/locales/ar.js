@@ -605,7 +605,7 @@ const locale = {
       dowPattern: "تُنجز عادةً يوم {{weekday}} ({{percent}}% من {{count}} إنجازاً) — إعادة جدولتها إلى {{weekday}}؟",
       loadBalance: "يوم {{fromWeekday}} فيه {{fromCount}} مهام مستحقة ويوم {{toWeekday}} لا شيء — نقل هذه المهمة؟",
       stalledSomeday: "لا نشاط منذ {{days}} يوماً على الأقل — فكّر في نقلها إلى قائمة «يوماً ما / ربما».",
-      recurringAdherence: "أُنجز في الوقت المحدد {{rate}}% فقط من {{completed}} تكراراً — تعديل قاعدة التكرار؟",
+      recurringAdherence: "أُنجز في الوقت المحدد {{rate}}% فقط من {{count}} تكراراً محدد الموعد — تعديل قاعدة التكرار؟",
     },
     actions: {
       setGtd: "نقل إلى قائمة «يوماً ما / ربما»",

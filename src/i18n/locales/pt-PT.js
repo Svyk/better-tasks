@@ -605,7 +605,7 @@ const locale = {
       dowPattern: "Habitualmente concluída em {{weekday}} ({{percent}}% de {{count}} conclusões) — reagendar para {{weekday}}?",
       loadBalance: "{{fromWeekday}} tem {{fromCount}} tarefas com prazo e {{toWeekday}} nenhuma — mover esta tarefa?",
       stalledSomeday: "Sem atividade há pelo menos {{days}} dias — considere movê-la para Um dia / Talvez.",
-      recurringAdherence: "Apenas {{rate}}% de {{completed}} ocorrências foram concluídas a tempo — rever a regra de repetição?",
+      recurringAdherence: "Apenas {{rate}}% de {{count}} ocorrências com prazo foram concluídas a tempo — rever a regra de repetição?",
     },
     actions: {
       setGtd: "Mover para Um dia / Talvez",
