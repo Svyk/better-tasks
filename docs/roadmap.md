@@ -261,12 +261,15 @@ This document is the **canonical Better Tasks roadmap**, integrating shipped wor
 - ✅ Quick buttons: Today, Tomorrow, +3d, Next Mon, +1w, +1m
 - ✅ Enter in text input saves immediately
 
-### Smart Suggestions
-- Advisory AI nudges only (never automatic)
-- "This task has been snoozed 5 times" → suggest someday/maybe
-- see ../../.codex/ROAM_EXTENSION_PATTERNS.md for context
-- "You usually do this on Mondays" → suggest reschedule
-- "No tasks scheduled for Thursday" → suggest load balancing
+### Smart Suggestions — Complete ✅
+- ✅ Advisory nudges only, never automatic — every change requires an explicit Accept; accepts and dismissals are persisted with a 30-day cooldown (`bt-suggestions-dismissals`, pruned and capped at 300 entries)
+- ✅ Heuristics only (no LLM): pure engine in `src/core/suggestions.js`, unit-tested (42 tests), clock-injected, structured output rendered via i18n
+- ✅ Five rules: snooze-count → Someday/Maybe (threshold configurable, default 5); weekday completion pattern → reschedule (≥5 completions, ≥60% concentration); weekly load balancing (peak day ≥4, an empty day in the next 7); stalled task → Someday/Maybe (reuses `bt-stalled-days`); recurring adherence ≤50% on-time → review repeat rule
+- ✅ Snooze counts read from the activity log with a bounded fan-out (editedAt+TTL-validated cache, 200-read cap, chunks of 5); rule degrades silently when the log is disabled
+- ✅ Slide-in Suggestions panel (Analytics-panel pattern, both render paths), header button with live count badge, `Shift+I` keybinding, Focus Mode modal-exclusivity gate
+- ✅ Settings: master enable (default ON), five per-rule toggles + snooze threshold under Advanced Dashboard Options, all seeded
+- ✅ `bt_get_suggestions` Extension Tools API (read-only; registry v1.2)
+- ✅ Natively translated in all 13 locales; `npm run check:release` green
 
 ### Trust & Exit — Complete ✅
 - ✅ Deconvert BT → plain TODO: Command Palette → "Deconvert Better Task to plain TODO" (cursor on task block)
