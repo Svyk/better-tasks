@@ -25,7 +25,8 @@
       "dashboard.filters.tagsLabel",
       "dashboard.notesLabel",
       "metadata.notes",
-      "series.exceptions"
+      "series.exceptions",
+      "suggestions.title"
     ],
     "it": [
       "buttons.no",
