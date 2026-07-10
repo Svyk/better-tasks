@@ -592,6 +592,27 @@ const locale = {
     noData: "此期间没有已完成的任务。",
     loading: "正在计算分析...",
   },
+  suggestions: {
+    title: "Suggestions",
+    loading: "Looking for suggestions...",
+    empty: "No suggestions right now — nothing needs your attention.",
+    accept: "Accept",
+    dismiss: "Dismiss",
+    acceptFailed: "Could not apply the suggestion.",
+    activityLogOff: "The activity log is disabled, so snooze-based suggestions are unavailable.",
+    rules: {
+      snoozeSomeday: "Snoozed {{count}} times — consider moving it to Someday/Maybe.",
+      dowPattern: "Usually completed on {{weekday}} ({{percent}}% of {{count}}) — reschedule to {{weekday}}?",
+      loadBalance: "{{fromWeekday}} has {{fromCount}} tasks due and {{toWeekday}} has none — move this one?",
+      stalledSomeday: "No activity for {{days}}+ days — consider moving it to Someday/Maybe.",
+      recurringAdherence: "Only {{rate}}% completed on time across {{completed}} occurrences — adjust the repeat rule?",
+    },
+    actions: {
+      setGtd: "Move to Someday/Maybe",
+      setDue: "Reschedule to {{date}}",
+      editRepeat: "Review repeat rule",
+    },
+  },
   focusMode: {
     title: "专注模式",
     enterButton: "专注",

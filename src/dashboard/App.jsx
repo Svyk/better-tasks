@@ -43,6 +43,7 @@ const DEFAULT_KEYBINDINGS = {
   fullPage: "f",
   refresh: "r",
   analytics: "shift+g",
+  suggestions: "shift+i",
   help: "shift+?",
   escape: "Escape",
 };
@@ -104,6 +105,7 @@ function KeyboardHelpOverlay({ keybindings, onClose }) {
     [keybindings.fullPage, "Toggle full page"],
     [keybindings.refresh, "Refresh"],
     [keybindings.analytics, "Graph analytics"],
+    [keybindings.suggestions, "Smart suggestions"],
     [keybindings.help, "Show / hide this help"],
     [keybindings.escape, "Close / clear"],
   ];
@@ -1819,6 +1821,228 @@ function AnalyticsPanel({ controller, language, onClose }) {
   );
 }
 
+// ========================= Smart Suggestions Panel =========================
+
+const SUGGESTION_RULE_ICONS = {
+  "snooze-someday": "\u{1F634}",
+  "dow-pattern": "\u{1F4C5}",
+  "load-balance": "⚖️",
+  "stalled-someday": "\u{1F578}️",
+  "recurring-adherence": "\u{1F501}",
+};
+
+const SUGGESTION_RULE_TEXT_KEYS = {
+  "snooze-someday": "snoozeSomeday",
+  "dow-pattern": "dowPattern",
+  "load-balance": "loadBalance",
+  "stalled-someday": "stalledSomeday",
+  "recurring-adherence": "recurringAdherence",
+};
+
+function SuggestionsPanel({ controller, language, onClose, onCountChange }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [pendingId, setPendingId] = useState(null);
+  const panelRef = useRef(null);
+  const lang = language || "en";
+  const s = (key, fallback) => tPath(["suggestions", key], lang) ?? fallback;
+  // zhHant is our locale id; Intl needs the BCP-47 form.
+  const intlLocale = lang === "zhHant" ? "zh-Hant" : lang;
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    controller?.computeSuggestions?.()
+      .then((result) => {
+        if (cancelled) return;
+        setData(result);
+        setLoading(false);
+        onCountChange?.(result?.suggestions?.length ?? 0);
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+    // onCountChange is a stable useCallback from DashboardApp.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [controller]);
+
+  useEffect(() => {
+    const handleKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); onClose?.(); } };
+    document.addEventListener("keydown", handleKey, true);
+    return () => document.removeEventListener("keydown", handleKey, true);
+  }, [onClose]);
+
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (panelRef.current && !panelRef.current.contains(e.target)) onClose?.();
+    };
+    const timer = setTimeout(() => document.addEventListener("mousedown", handleClick), 50);
+    return () => { clearTimeout(timer); document.removeEventListener("mousedown", handleClick); };
+  }, [onClose]);
+
+  const portalRoot = useMemo(() => {
+    if (typeof document === "undefined") return null;
+    const el = document.createElement("div");
+    el.className = "bt-suggestions-portal";
+    el.setAttribute("data-bt-portal", "suggestions");
+    return el;
+  }, []);
+
+  useEffect(() => {
+    if (!portalRoot) return undefined;
+    const host = document.querySelector(".bt-dashboard-host") || document.body;
+    host.appendChild(portalRoot);
+    return () => portalRoot.remove();
+  }, [portalRoot]);
+
+  const weekdayName = (idx) => {
+    try {
+      // 4 January 2026 is a Sunday, so day 4 + idx has getDay() === idx.
+      return new Intl.DateTimeFormat(intlLocale, { weekday: "long" }).format(
+        new Date(2026, 0, 4 + idx, 12)
+      );
+    } catch (_) {
+      return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][idx] || "";
+    }
+  };
+
+  const formatDay = (iso) => {
+    try {
+      return new Intl.DateTimeFormat(intlLocale, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      }).format(new Date(iso + "T12:00:00"));
+    } catch (_) {
+      return iso;
+    }
+  };
+
+  const suggestionText = (sugg) => {
+    const tpl = tPath(["suggestions", "rules", SUGGESTION_RULE_TEXT_KEYS[sugg.ruleId]], lang);
+    if (typeof tpl !== "string") return sugg.ruleId;
+    const p = sugg.params || {};
+    const sub = (value) => (value == null ? "" : String(value));
+    return tpl
+      .replace(/\{\{count\}\}/g, sub(p.count))
+      .replace(/\{\{percent\}\}/g, sub(p.percent))
+      .replace(/\{\{days\}\}/g, sub(p.days))
+      .replace(/\{\{rate\}\}/g, sub(p.rate))
+      .replace(/\{\{completed\}\}/g, sub(p.completed))
+      .replace(/\{\{fromCount\}\}/g, sub(p.fromCount))
+      .replace(/\{\{weekday\}\}/g, p.weekday == null ? "" : weekdayName(p.weekday))
+      .replace(/\{\{fromWeekday\}\}/g, p.fromWeekday == null ? "" : weekdayName(p.fromWeekday))
+      .replace(/\{\{toWeekday\}\}/g, p.toWeekday == null ? "" : weekdayName(p.toWeekday));
+  };
+
+  const acceptLabel = (sugg) => {
+    const type = sugg.action?.type;
+    if (type === "set-gtd") return tPath(["suggestions", "actions", "setGtd"], lang) || "Move to Someday/Maybe";
+    if (type === "set-due") {
+      const tpl = tPath(["suggestions", "actions", "setDue"], lang) || "Reschedule to {{date}}";
+      return tpl.replace(/\{\{date\}\}/g, formatDay(sugg.action?.payload?.dueISO || ""));
+    }
+    if (type === "edit-repeat") return tPath(["suggestions", "actions", "editRepeat"], lang) || "Review repeat rule";
+    return s("accept", "Accept");
+  };
+
+  const removeFromList = (id) => {
+    setData((prev) => {
+      if (!prev?.suggestions) return prev;
+      const suggestions = prev.suggestions.filter((item) => item.id !== id);
+      onCountChange?.(suggestions.length);
+      return { ...prev, suggestions };
+    });
+  };
+
+  const handleAccept = async (sugg) => {
+    if (pendingId) return;
+    setPendingId(sugg.id);
+    try {
+      const result = await controller?.acceptSuggestion?.(sugg);
+      if (result?.ok) {
+        removeFromList(sugg.id);
+      } else {
+        iziToast.error({ message: s("acceptFailed", "Could not apply the suggestion.") });
+      }
+    } finally {
+      setPendingId(null);
+    }
+  };
+
+  const handleDismiss = (sugg) => {
+    if (pendingId) return;
+    controller?.dismissSuggestion?.(sugg.id);
+    removeFromList(sugg.id);
+  };
+
+  if (!portalRoot) return null;
+
+  const suggestions = data?.suggestions || [];
+
+  return createPortal(
+    <div className="bt-suggestions-overlay" role="dialog" aria-label={s("title", "Suggestions")}>
+      <div className="bt-suggestions-overlay__backdrop" onClick={onClose} />
+      <div className="bt-suggestions-overlay__panel" ref={panelRef}>
+        <div className="bt-suggestions-header">
+          <h3 className="bt-suggestions-header__title">{s("title", "Suggestions")}</h3>
+          <button type="button" className="bp3-button bp3-minimal bp3-small" onClick={onClose} aria-label="Close">
+            ✕
+          </button>
+        </div>
+        <div className="bt-suggestions-content">
+          {loading ? (
+            <div className="bt-suggestions-empty">{s("loading", "Looking for suggestions...")}</div>
+          ) : !suggestions.length ? (
+            <div className="bt-suggestions-empty">{s("empty", "No suggestions right now — nothing needs your attention.")}</div>
+          ) : (
+            <ul className="bt-suggestions-list">
+              {suggestions.map((sugg) => (
+                <li key={sugg.id} className="bt-suggestions-card">
+                  <div className="bt-suggestions-card__body">
+                    <span className="bt-suggestions-card__icon" aria-hidden="true">
+                      {SUGGESTION_RULE_ICONS[sugg.ruleId] || "\u{1F4A1}"}
+                    </span>
+                    <div className="bt-suggestions-card__text">
+                      <span className="bt-suggestions-card__title">{sugg.title}</span>
+                      <span className="bt-suggestions-card__reason">{suggestionText(sugg)}</span>
+                    </div>
+                  </div>
+                  <div className="bt-suggestions-card__actions">
+                    <button
+                      type="button"
+                      className="bp3-button bp3-small bp3-intent-primary"
+                      disabled={pendingId === sugg.id}
+                      onClick={() => handleAccept(sugg)}
+                    >
+                      {acceptLabel(sugg)}
+                    </button>
+                    <button
+                      type="button"
+                      className="bp3-button bp3-small bp3-minimal"
+                      disabled={pendingId === sugg.id}
+                      onClick={() => handleDismiss(sugg)}
+                    >
+                      {s("dismiss", "Dismiss")}
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          {!loading && data?.activityLogEnabled === false ? (
+            <div className="bt-suggestions-footnote">
+              {s("activityLogOff", "The activity log is disabled, so snooze-based suggestions are unavailable.")}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>,
+    portalRoot
+  );
+}
+
 // ========================= Focus Mode Panel =========================
 
 function FocusModePanel({ queue, controller, language, liveSnapshot, strings, onExit, onRefreshQueue }) {
@@ -2947,6 +3171,17 @@ export default function DashboardApp({ controller, onRequestClose, onHeaderReady
   const [menuOpenForUid, setMenuOpenForUid] = useState(null);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestionsCount, setSuggestionsCount] = useState(
+    () => controller?.getSuggestionsCached?.()?.suggestions?.length ?? null
+  );
+  const handleSuggestionsCount = useCallback((n) => setSuggestionsCount(n), []);
+  // Read once per controller — toggling the setting takes effect when the
+  // dashboard next mounts, which matches how other feature switches behave.
+  const suggestionsEnabled = useMemo(
+    () => controller?.getSuggestionSettings?.()?.enabled !== false,
+    [controller]
+  );
   const [focusModeOpen, setFocusModeOpen] = useState(false);
   const [focusQueue, setFocusQueue] = useState(null);
 
@@ -3556,6 +3791,13 @@ export default function DashboardApp({ controller, onRequestClose, onHeaderReady
         return;
       }
 
+      // Shift+I — toggle suggestions panel
+      if (matchesBinding(key, keybindings.suggestions)) {
+        event.preventDefault();
+        setShowSuggestions((v) => !v);
+        return;
+      }
+
       // ? — show keyboard shortcut help
       if (matchesBinding(key, keybindings.help)) {
         event.preventDefault();
@@ -3961,7 +4203,7 @@ export default function DashboardApp({ controller, onRequestClose, onHeaderReady
       iziToast.info({ message: ui.focusMode?.alreadyOpenToast || "Focus Mode is already open." });
       return;
     }
-    if (showAnalytics || seriesViewTask || showKeyboardHelp || menuOpenForUid) {
+    if (showAnalytics || showSuggestions || seriesViewTask || showKeyboardHelp || menuOpenForUid) {
       iziToast.info({
         message: ui.focusMode?.modalBlockedToast || "Close other panels before entering Focus Mode.",
       });
@@ -3980,6 +4222,7 @@ export default function DashboardApp({ controller, onRequestClose, onHeaderReady
   }, [
     filteredTasks,
     showAnalytics,
+    showSuggestions,
     seriesViewTask,
     showKeyboardHelp,
     menuOpenForUid,
@@ -4765,6 +5008,18 @@ export default function DashboardApp({ controller, onRequestClose, onHeaderReady
             <button type="button" className="bp3-button bp3-small" onClick={() => setShowAnalytics(true)}>
               {tPath(["analytics", "title"], lang) || "Analytics"}
             </button>
+            {suggestionsEnabled ? (
+              <button
+                type="button"
+                className="bp3-button bp3-small bt-suggestions-btn"
+                onClick={() => setShowSuggestions(true)}
+              >
+                {tPath(["suggestions", "title"], lang) || "Suggestions"}
+                {suggestionsCount > 0 ? (
+                  <span className="bt-suggestions-badge">{suggestionsCount}</span>
+                ) : null}
+              </button>
+            ) : null}
             {!isMobileLayout ? (
               <button type="button" className="bp3-button bp3-small" onClick={handleToggleFullPage}>
                 {snapshot?.isFullPage ? ui.fullPageExit : ui.fullPageEnter}
@@ -5148,6 +5403,14 @@ export default function DashboardApp({ controller, onRequestClose, onHeaderReady
         {showAnalytics && (
           <AnalyticsPanel controller={controller} language={language} onClose={() => setShowAnalytics(false)} />
         )}
+        {showSuggestions && (
+          <SuggestionsPanel
+            controller={controller}
+            language={language}
+            onClose={() => setShowSuggestions(false)}
+            onCountChange={handleSuggestionsCount}
+          />
+        )}
         {focusModeOpen && focusQueue && (
           <FocusModePanel
             queue={focusQueue}
@@ -5183,6 +5446,18 @@ export default function DashboardApp({ controller, onRequestClose, onHeaderReady
           <button type="button" className="bp3-button bp3-small" onClick={() => setShowAnalytics(true)}>
             {tPath(["analytics", "title"], lang) || "Analytics"}
           </button>
+          {suggestionsEnabled ? (
+            <button
+              type="button"
+              className="bp3-button bp3-small bt-suggestions-btn"
+              onClick={() => setShowSuggestions(true)}
+            >
+              {tPath(["suggestions", "title"], lang) || "Suggestions"}
+              {suggestionsCount > 0 ? (
+                <span className="bt-suggestions-badge">{suggestionsCount}</span>
+              ) : null}
+            </button>
+          ) : null}
           {!isMobileLayout ? (
             <button type="button" className="bp3-button bp3-small" onClick={handleToggleFullPage}>
               {snapshot?.isFullPage ? ui.fullPageExit : ui.fullPageEnter}
@@ -5797,6 +6072,14 @@ export default function DashboardApp({ controller, onRequestClose, onHeaderReady
       )}
       {showAnalytics && (
         <AnalyticsPanel controller={controller} language={language} onClose={() => setShowAnalytics(false)} />
+      )}
+      {showSuggestions && (
+        <SuggestionsPanel
+          controller={controller}
+          language={language}
+          onClose={() => setShowSuggestions(false)}
+          onCountChange={handleSuggestionsCount}
+        />
       )}
       {focusModeOpen && focusQueue && (
         <FocusModePanel
