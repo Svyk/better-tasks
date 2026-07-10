@@ -83,6 +83,12 @@ import {
   computeBlockedState as computeBlockedStateCore,
 } from "./core/dependencies";
 import {
+  SUGGESTION_DEFAULTS,
+  computeSuggestions as computeSuggestionsCore,
+  filterDismissed as filterDismissedSuggestions,
+  pruneDismissals as pruneSuggestionDismissals,
+} from "./core/suggestions";
+import {
   initProjectStore,
   resetProjectStore,
   refreshProjectOptions,
@@ -231,6 +237,14 @@ const MONTHLY_REVIEW_STEP_STALLED_SETTING = "bt-monthly-review-step-stalled";
 const MONTHLY_REVIEW_STEP_SOMEDAY_SETTING = "bt-monthly-review-step-someday";
 const MONTHLY_REVIEW_STEP_OVERDUE_SETTING = "bt-monthly-review-step-overdue";
 const STALLED_DAYS_SETTING = "bt-stalled-days";
+const SUGGESTIONS_ENABLED_SETTING = "bt-suggestions-enabled";
+const SUGGEST_SNOOZE_THRESHOLD_SETTING = "bt-suggest-snooze-threshold";
+const SUGGEST_RULE_SNOOZE_SETTING = "bt-suggest-rule-snooze";
+const SUGGEST_RULE_DOW_SETTING = "bt-suggest-rule-dow";
+const SUGGEST_RULE_LOAD_SETTING = "bt-suggest-rule-load";
+const SUGGEST_RULE_STALLED_SETTING = "bt-suggest-rule-stalled";
+const SUGGEST_RULE_ADHERENCE_SETTING = "bt-suggest-rule-adherence";
+const SUGGESTIONS_DISMISSALS_SETTING = "bt-suggestions-dismissals";
 const TODAY_WIDGET_ANCHOR_TEXT_DEFAULT = "Better Tasks - Today";
 const TODAY_WIDGET_ANCHOR_TEXT_LEGACY = ["BetterTasks Today Widget", "Better Tasks - Today"];
 const TODAY_WIDGET_PANEL_CHILD_TEXT = "";
@@ -824,6 +838,87 @@ export default {
         },
       ];
 
+      const suggestionSettings = [
+        {
+          id: SUGGESTIONS_ENABLED_SETTING,
+          name: tr("settings.suggestionsEnabled", "Enable Smart Suggestions"),
+          description: tr(
+            "settings.suggestionsEnabledDescription",
+            "Show advisory suggestions in the dashboard (snooze patterns, weekday habits, load balancing). Nothing changes without your explicit confirmation."
+          ),
+          action: {
+            type: "switch",
+            onChange: (v) => {
+              const normalized = normalizeBooleanSetting(normalizeTodaySettingValue(v));
+              extensionAPI.settings.set(SUGGESTIONS_ENABLED_SETTING, normalized);
+            },
+          },
+        },
+      ];
+
+      const suggestRuleDescription = tr(
+        "settings.suggestRuleDescription",
+        "Enable or disable this suggestion rule."
+      );
+      const suggestRuleSwitch = (settingId) => ({
+        type: "switch",
+        onChange: (v) => {
+          const normalized = normalizeBooleanSetting(normalizeTodaySettingValue(v));
+          extensionAPI.settings.set(settingId, normalized);
+        },
+      });
+      const suggestionAdvancedSettings = [
+        {
+          id: SUGGEST_SNOOZE_THRESHOLD_SETTING,
+          name: tr("settings.suggestSnoozeThreshold", "Suggestion: snooze threshold"),
+          description: tr(
+            "settings.suggestSnoozeThresholdDescription",
+            "Number of snoozes before a task is suggested for Someday/Maybe."
+          ),
+          action: {
+            type: "input",
+            placeholder: "5",
+            onChange: (v) => {
+              const raw = v?.target?.value !== undefined ? v.target.value : v;
+              const num = parseInt(String(raw), 10);
+              if (Number.isFinite(num) && num > 0) {
+                extensionAPI.settings.set(SUGGEST_SNOOZE_THRESHOLD_SETTING, num);
+              }
+            },
+          },
+        },
+        {
+          id: SUGGEST_RULE_SNOOZE_SETTING,
+          name: tr("settings.suggestRuleSnooze", "Suggestion rule: snoozed tasks"),
+          description: suggestRuleDescription,
+          action: suggestRuleSwitch(SUGGEST_RULE_SNOOZE_SETTING),
+        },
+        {
+          id: SUGGEST_RULE_DOW_SETTING,
+          name: tr("settings.suggestRuleDow", "Suggestion rule: weekday patterns"),
+          description: suggestRuleDescription,
+          action: suggestRuleSwitch(SUGGEST_RULE_DOW_SETTING),
+        },
+        {
+          id: SUGGEST_RULE_LOAD_SETTING,
+          name: tr("settings.suggestRuleLoad", "Suggestion rule: load balancing"),
+          description: suggestRuleDescription,
+          action: suggestRuleSwitch(SUGGEST_RULE_LOAD_SETTING),
+        },
+        {
+          id: SUGGEST_RULE_STALLED_SETTING,
+          name: tr("settings.suggestRuleStalled", "Suggestion rule: stalled tasks"),
+          description: suggestRuleDescription,
+          action: suggestRuleSwitch(SUGGEST_RULE_STALLED_SETTING),
+        },
+        {
+          id: SUGGEST_RULE_ADHERENCE_SETTING,
+          name: tr("settings.suggestRuleAdherence", "Suggestion rule: recurring adherence"),
+          description: suggestRuleDescription,
+          action: suggestRuleSwitch(SUGGEST_RULE_ADHERENCE_SETTING),
+        },
+      ];
+
       const attributeSettings = [
         {
           id: "rt-repeat-attr",
@@ -1157,8 +1252,9 @@ export default {
       // 4) AI
       // 5) Advanced Dashboard toggle
       // 6) Weekly Review steps (advanced)
-      // 7) Picklist advanced
-      // 8) Attribute names (advanced) toggle + fields
+      // 7) Smart Suggestions (master; per-rule toggles are advanced)
+      // 8) Picklist advanced
+      // 9) Attribute names (advanced) toggle + fields
       const settings = [
         ...coreSettings,
         ...todayBadgeSettings,
@@ -1176,6 +1272,8 @@ export default {
           ),
           action: { type: "input", placeholder: '{"moveDown":"j","moveUp":"k"}' },
         }] : []),
+        ...suggestionSettings,
+        ...(advancedDashboardEnabled ? suggestionAdvancedSettings : []),
         ...picklistAdvanced,
         {
           id: "bt-templates-manage",
@@ -1238,6 +1336,27 @@ export default {
     }
     if (extensionAPI.settings.get(ACTIVITY_LOG_MAX_ENTRIES_SETTING) == null) {
       extensionAPI.settings.set(ACTIVITY_LOG_MAX_ENTRIES_SETTING, "");
+    }
+    if (extensionAPI.settings.get(SUGGESTIONS_ENABLED_SETTING) == null) {
+      extensionAPI.settings.set(SUGGESTIONS_ENABLED_SETTING, true);
+    }
+    if (extensionAPI.settings.get(SUGGEST_SNOOZE_THRESHOLD_SETTING) == null) {
+      extensionAPI.settings.set(SUGGEST_SNOOZE_THRESHOLD_SETTING, SUGGESTION_DEFAULTS.snoozeThreshold);
+    }
+    if (extensionAPI.settings.get(SUGGEST_RULE_SNOOZE_SETTING) == null) {
+      extensionAPI.settings.set(SUGGEST_RULE_SNOOZE_SETTING, true);
+    }
+    if (extensionAPI.settings.get(SUGGEST_RULE_DOW_SETTING) == null) {
+      extensionAPI.settings.set(SUGGEST_RULE_DOW_SETTING, true);
+    }
+    if (extensionAPI.settings.get(SUGGEST_RULE_LOAD_SETTING) == null) {
+      extensionAPI.settings.set(SUGGEST_RULE_LOAD_SETTING, true);
+    }
+    if (extensionAPI.settings.get(SUGGEST_RULE_STALLED_SETTING) == null) {
+      extensionAPI.settings.set(SUGGEST_RULE_STALLED_SETTING, true);
+    }
+    if (extensionAPI.settings.get(SUGGEST_RULE_ADHERENCE_SETTING) == null) {
+      extensionAPI.settings.set(SUGGEST_RULE_ADHERENCE_SETTING, true);
     }
     if (extensionAPI.settings.get(TODAY_WIDGET_ENABLE_SETTING) == null) {
       extensionAPI.settings.set(TODAY_WIDGET_ENABLE_SETTING, false);
@@ -4596,6 +4715,21 @@ export default {
     let dashboardSeriesIndex = new Map();
     let analyticsCache = null;
 
+    // ========================= Smart Suggestions caches =========================
+    let suggestionsCache = null; // { data, computedAt } — 30s TTL, analytics model
+    const SUGGESTIONS_CACHE_TTL_MS = 30000;
+    // uid → { count, editedAt, at }. Valid only when editedAt still matches the
+    // task AND the entry is younger than the TTL — :edit/time does not reliably
+    // move when a grandchild activity event is written, so editedAt alone is
+    // not a safe invalidator. Bounded FIFO (not LRU); staying bounded is what
+    // matters, eviction precision is not.
+    const snoozeCountCache = new Map();
+    const SNOOZE_COUNT_CACHE_MAX = 500;
+    const SNOOZE_COUNT_TTL_MS = 5 * 60 * 1000;
+    const SNOOZE_FANOUT_CAP = 200; // hard bound on activity-log reads per compute
+    const SNOOZE_FANOUT_CHUNK = 5;
+    let snoozeFanoutCapWarned = false;
+
     // ========================= Dependency / blocked-state helpers =========================
     const blockedStateCache = new Map();
     const BLOCKED_CACHE_TTL_MS = 30000;
@@ -7254,9 +7388,11 @@ export default {
 
     // ── Activity log ─────────────────────────────────────────────────
     // Storage: each task may have one "history container" child block,
-    // identified by :block/props.bt.kind === "history". Activity events are
-    // children of that container, one per mutation. Each event block has
-    // human-readable text and structured :block/props.bt for analytics.
+    // identified by its block string (see HISTORY_CONTAINER_TITLES below —
+    // Roam's datalog index cannot query custom props, so string match it is).
+    // Activity events are children of that container, one per mutation. Each
+    // event block has human-readable text and structured :block/props.bt
+    // (kind: "event") for analytics and Smart Suggestions.
 
     const HISTORY_CONTAINER_KEY = "__bt_history_container__";
     // Cache lives until the entry is explicitly invalidated (deconvert /
@@ -14012,6 +14148,11 @@ export default {
           } catch { return null; }
         },
         getWeekStart: () => getWeekStartSetting(),
+        computeSuggestions: computeDashboardSuggestions,
+        getSuggestionsCached,
+        dismissSuggestion,
+        acceptSuggestion,
+        getSuggestionSettings,
         computeAnalytics: async (period) => {
           const ANALYTICS_CACHE_TTL = 30000;
           if (
@@ -14415,6 +14556,255 @@ export default {
         return { currentStreak, longestStreak, onTimeRate, totalCompleted, totalWithDue: withDue.length };
       }
 
+      // ── Smart Suggestions ─────────────────────────────────────────
+      function getSuggestionSettings() {
+        const readBool = (settingId) => {
+          const raw = extensionAPI?.settings?.get?.(settingId);
+          return raw == null ? true : normalizeBooleanSetting(raw);
+        };
+        const thresholdRaw = extensionAPI?.settings?.get?.(SUGGEST_SNOOZE_THRESHOLD_SETTING);
+        const thresholdNum = typeof thresholdRaw === "number" ? thresholdRaw : parseInt(String(thresholdRaw), 10);
+        return {
+          enabled: readBool(SUGGESTIONS_ENABLED_SETTING),
+          snoozeThreshold:
+            Number.isFinite(thresholdNum) && thresholdNum > 0
+              ? thresholdNum
+              : SUGGESTION_DEFAULTS.snoozeThreshold,
+          stalledDays: getStalledDays(),
+          rules: {
+            "snooze-someday": readBool(SUGGEST_RULE_SNOOZE_SETTING),
+            "dow-pattern": readBool(SUGGEST_RULE_DOW_SETTING),
+            "load-balance": readBool(SUGGEST_RULE_LOAD_SETTING),
+            "stalled-someday": readBool(SUGGEST_RULE_STALLED_SETTING),
+            "recurring-adherence": readBool(SUGGEST_RULE_ADHERENCE_SETTING),
+          },
+        };
+      }
+
+      function loadSuggestionDismissals() {
+        try {
+          const raw = extensionAPI?.settings?.get?.(SUGGESTIONS_DISMISSALS_SETTING);
+          if (!raw || typeof raw !== "string") return {};
+          const parsed = JSON.parse(raw);
+          return parsed && parsed.entries && typeof parsed.entries === "object" ? parsed.entries : {};
+        } catch (_) {
+          return {};
+        }
+      }
+
+      function saveSuggestionDismissals(entries) {
+        try {
+          extensionAPI?.settings?.set?.(
+            SUGGESTIONS_DISMISSALS_SETTING,
+            JSON.stringify({ schema: 1, entries: entries || {} })
+          );
+        } catch (err) {
+          console.warn("[BetterTasks] failed to save suggestion dismissals", err);
+        }
+      }
+
+      // Gather per-task snooze counts from the activity log — the only place
+      // they exist. Bounded fan-out: only tasks the snooze rule can act on,
+      // cache-first, at most SNOOZE_FANOUT_CAP uncached reads per pass in
+      // small sequential chunks so a large graph cannot freeze the tab.
+      async function collectSnoozeCounts(tasks) {
+        if (!activityLogEnabled()) return null;
+        const candidates = tasks.filter(
+          (task) =>
+            task &&
+            !task.isCompleted &&
+            !task.isRecurring &&
+            !task.isBlocked &&
+            ((task.metadata?.gtd || "").toLowerCase() !== "someday")
+        );
+        const counts = new Map();
+        const toRead = [];
+        const nowMs = Date.now();
+        for (const task of candidates) {
+          const entry = snoozeCountCache.get(task.uid);
+          if (entry && entry.editedAt === task.editedAt && nowMs - entry.at < SNOOZE_COUNT_TTL_MS) {
+            counts.set(task.uid, entry.count);
+          } else if (toRead.length < SNOOZE_FANOUT_CAP) {
+            toRead.push(task);
+          } else if (!snoozeFanoutCapWarned) {
+            snoozeFanoutCapWarned = true;
+            console.warn(
+              `[BetterTasks] Smart Suggestions: more than ${SNOOZE_FANOUT_CAP} tasks need an activity-log read; the remainder are skipped this pass.`
+            );
+          }
+        }
+        for (let i = 0; i < toRead.length; i += SNOOZE_FANOUT_CHUNK) {
+          const chunk = toRead.slice(i, i + SNOOZE_FANOUT_CHUNK);
+          await Promise.all(
+            chunk.map(async (task) => {
+              try {
+                const log = await readActivityLog(task.uid);
+                const count = log.entries.filter((e) => e.event === "snooze").length;
+                counts.set(task.uid, count);
+                snoozeCountCache.set(task.uid, { count, editedAt: task.editedAt, at: Date.now() });
+              } catch (_) {
+                // Best effort — an unreadable log just means no suggestion.
+              }
+            })
+          );
+        }
+        while (snoozeCountCache.size > SNOOZE_COUNT_CACHE_MAX) {
+          const oldest = snoozeCountCache.keys().next().value;
+          snoozeCountCache.delete(oldest);
+        }
+        return counts;
+      }
+
+      // Slim the series index into the pure-core input shape. Completions are
+      // capped to the most recent 60 — enough for any weekday signal.
+      function buildSuggestionSeriesInput() {
+        const series = [];
+        for (const [seriesId, entry] of dashboardSeriesIndex.entries()) {
+          const members = Array.isArray(entry?.members) ? entry.members : [];
+          if (!members.length) continue;
+          const open = members
+            .filter((m) => !m.isCompleted && m.dueAt instanceof Date)
+            .sort((a, b) => a.dueAt - b.dueAt);
+          const openMember = open.length ? { uid: open[0].uid, dueAt: open[0].dueAt } : null;
+          const completions = members
+            .filter((m) => m.isCompleted && m.completedAt instanceof Date)
+            .slice(-60)
+            .map((m) => ({ completedAt: m.completedAt, dueAt: m.dueAt instanceof Date ? m.dueAt : null }));
+          series.push({
+            seriesId,
+            title: (open.length ? open[0].title : members[members.length - 1]?.title) || "",
+            openMember,
+            completions,
+            stats: computeSeriesStreaks(members),
+          });
+        }
+        return series;
+      }
+
+      async function computeDashboardSuggestions(options = {}) {
+        const includeDismissed = options.includeDismissed === true;
+        if (
+          !includeDismissed &&
+          suggestionsCache &&
+          Date.now() - suggestionsCache.computedAt < SUGGESTIONS_CACHE_TTL_MS
+        ) {
+          return suggestionsCache.data;
+        }
+        const suggestionSettings = getSuggestionSettings();
+        const logEnabled = activityLogEnabled();
+        if (!suggestionSettings.enabled) {
+          const empty = { suggestions: [], computedAt: Date.now(), activityLogEnabled: logEnabled };
+          suggestionsCache = { data: empty, computedAt: Date.now() };
+          return empty;
+        }
+        const tasks = await collectDashboardTasks({
+          includeCompleted: true,
+          attachWatches: false,
+          cacheKey: "suggestions",
+        });
+        const all = Array.isArray(tasks) ? tasks : [];
+        const now = new Date();
+        const snoozeCounts = await collectSnoozeCounts(all);
+        const series = buildSuggestionSeriesInput();
+        const computed = computeSuggestionsCore(
+          { tasks: all, snoozeCounts, series },
+          {
+            now,
+            thresholds: {
+              snoozeThreshold: suggestionSettings.snoozeThreshold,
+              stalledDays: suggestionSettings.stalledDays,
+            },
+            enabledRules: suggestionSettings.rules,
+          }
+        );
+        // Prune the dismissal store while the live subject set is at hand.
+        const subjects = new Set();
+        for (const task of all) subjects.add(task.uid);
+        for (const s of series) subjects.add(s.seriesId);
+        const { entries, changed } = pruneSuggestionDismissals(loadSuggestionDismissals(), {
+          existingSubjects: subjects,
+          now,
+        });
+        if (changed) saveSuggestionDismissals(entries);
+        const visible = includeDismissed
+          ? computed
+          : filterDismissedSuggestions(computed, entries, { now });
+        const data = { suggestions: visible, computedAt: Date.now(), activityLogEnabled: logEnabled };
+        if (!includeDismissed) suggestionsCache = { data, computedAt: Date.now() };
+        return data;
+      }
+
+      // Badge source — last computed result, possibly stale; never computes.
+      function getSuggestionsCached() {
+        return suggestionsCache ? suggestionsCache.data : null;
+      }
+
+      // Keep the cached list (and therefore the badge) accurate after an
+      // accept/dismiss without discarding the freshness clock.
+      function removeSuggestionFromCache(id) {
+        if (!suggestionsCache?.data?.suggestions) return;
+        suggestionsCache = {
+          data: {
+            ...suggestionsCache.data,
+            suggestions: suggestionsCache.data.suggestions.filter((s) => s.id !== id),
+          },
+          computedAt: suggestionsCache.computedAt,
+        };
+      }
+
+      function dismissSuggestion(id) {
+        if (!id || typeof id !== "string") return;
+        const entries = loadSuggestionDismissals();
+        entries[id] = { ts: Date.now(), kind: "dismissed" };
+        saveSuggestionDismissals(entries);
+        removeSuggestionFromCache(id);
+      }
+
+      async function acceptSuggestion(suggestion) {
+        const action = suggestion?.action;
+        const taskUid = suggestion?.taskUid;
+        if (!suggestion?.id || !action?.type || !taskUid) {
+          return { ok: false, error: "Invalid suggestion" };
+        }
+        try {
+          await withActivityContext(taskUid, { source: "suggestion" }, async () => {
+            if (action.type === "set-gtd") {
+              await updateMetadata(taskUid, { gtd: action.payload?.gtd || "someday" });
+            } else if (action.type === "set-due") {
+              await setTaskDueDate(taskUid, action.payload?.dueISO);
+            } else if (action.type === "edit-repeat") {
+              await editRepeat(taskUid);
+            } else {
+              throw new Error(`Unknown suggestion action: ${action.type}`);
+            }
+          });
+          const entries = loadSuggestionDismissals();
+          entries[suggestion.id] = { ts: Date.now(), kind: "accepted" };
+          saveSuggestionDismissals(entries);
+          removeSuggestionFromCache(suggestion.id);
+          return { ok: true };
+        } catch (err) {
+          console.warn("[BetterTasks] acceptSuggestion failed", err);
+          return { ok: false, error: String(err?.message || err) };
+        }
+      }
+
+      // Direct due-date write for suggestion accepts. Mirrors the date
+      // normalisation of executeToolModify: local-noon Date → formatDate.
+      // Runs only from an explicit Accept click and lands in the activity log.
+      async function setTaskDueDate(uid, dueISO) {
+        if (!uid || typeof dueISO !== "string") return;
+        const m = dueISO.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!m) return;
+        const set = S();
+        const date = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12, 0, 0, 0);
+        await applyToolAttributePatch(uid, { due: formatDate(date, set) }, set);
+        scheduleSurfaceSync(set.attributeSurface);
+        await notifyBlockChange(uid, { bypassFilters: true });
+        await refresh({ reason: "suggestion-reschedule" });
+      }
+      // ── End Smart Suggestions ─────────────────────────────────────
+
       function extractRtFromBlock(block) {
         const props = parseProps(block?.props);
         const raw = props?.rt || props?.[":rt"] || {};
@@ -14474,6 +14864,7 @@ export default {
 
       async function refresh({ reason = "manual" } = {}) {
         analyticsCache = null;
+        suggestionsCache = null;
         if (refreshPromise) return refreshPromise;
         state = {
           ...state,
@@ -15771,6 +16162,8 @@ export default {
 
       function dispose() {
         analyticsCache = null;
+        suggestionsCache = null;
+        snoozeCountCache.clear();
         subscribers.clear();
         close();
         state = { ...initialState };
