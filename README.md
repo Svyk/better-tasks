@@ -40,6 +40,7 @@ If you use TODOs in Roam, Better Tasks gives you:
 
 ## ✅ Recent updates
 
+- **Smart Suggestions:** advisory nudges computed locally from your task history — never automatic, every change needs an explicit Accept. Five rules: a task snoozed 5+ times suggests **Someday / Maybe**; a recurring series usually completed on a different weekday than scheduled suggests rescheduling; an overloaded day next week with an empty day nearby suggests moving a flexible task; a stalled task with no near-term due date suggests Someday / Maybe; a chronically-late recurring series suggests reviewing its repeat rule. Slide-in panel from the dashboard header (**Suggestions** button with live count badge) or `Shift+I`. Dismissals persist with a 30-day cooldown. Pure local heuristics — no AI, no API calls. Master switch plus per-rule toggles in settings. Also available programmatically via `bt_get_suggestions`.
 - **Recurrence fixes:** four repeat patterns were resolving incorrectly and have been corrected. `on the 1st and 15th of each month` (and any multi-day rule including the 1st) skipped the 1st whenever the schedule crossed a month boundary — it now lands on every listed day. `every month on the second tuesday` and `every 3 months on the 2nd tuesday` were both being treated as a plain weekly Tuesday, ignoring the monthly interval. `every other tuesday` scheduled weekly rather than fortnightly. And `first monday of september` failed to parse unless you appended `every year`. **If you use any of these patterns, check the next due date on the affected tasks** — open the ⋯ menu → **View series** to see the corrected upcoming occurrences. The recurrence engine now ships with an automated test suite to prevent regressions.
 - **Circular dependency detection fixes:** the cycle check gave up after examining 20 tasks and then reported "no cycle", so a dependency chain longer than about 20 links — or a task with many dependencies where the looping one happened to be examined last — could be closed into a ring. Every task in that ring would then stay 🔒 blocked forever, waiting on the next. The check now explores the whole graph, says so explicitly when a graph is too large to verify, and never caches an unfinished answer. Cached results are also correctly discarded when a task *in the middle* of a dependency chain changes. **If any of your tasks have been stuck showing 🔒 with nothing obviously blocking them, they should now resolve.**
 - **Calendar export fixes (ICS):** exported `.ics` files are now valid iCalendar. Task titles and project names containing a comma, semicolon or backslash — `Buy milk, eggs` is enough to trigger it — were written unescaped and could be truncated or mis-parsed on import; they are now escaped per RFC 5545. Each event also gains the required `DTSTAMP` property, and long titles use standard line folding, so strict importers accept the file. CSV export now also quotes values containing a carriage return. **If you previously imported a Better Tasks calendar and titles looked mangled, re-export.**
@@ -293,6 +294,7 @@ Features:
 - Mobile-friendly layout (full-page with slide-in filters and sticky quick-add)
 - **Focus / Do Mode** — distraction-free single-task execution surface with keyboard-first navigation, launched from the **Focus** button in the header (see [Focus / Do Mode](#focus--do-mode) below)
 - **Graph Analytics** — slide-in panel with completion trends, time-to-completion, overdue frequency, project breakdown, recurring adherence, and busiest-days heatmap (press `Shift+G` or click Analytics in the header)
+- **Smart Suggestions** — advisory nudges from local heuristics with per-suggestion Accept/Dismiss (press `Shift+I` or click Suggestions in the header; see [Smart Suggestions](#smart-suggestions) below)
 - **Keyboard navigation** (press `?` in the dashboard for the full legend):
 
 | Key | Action |
@@ -416,6 +418,29 @@ Focus Mode takes a snapshot of your currently-visible filtered and sorted task l
 
 > Tip: set up your filter and sort first (e.g. "Due Today" preset, sorted by priority), then click **Focus** — the queue is built from exactly what you see.
 
+### Smart Suggestions
+
+Advisory nudges computed locally from your task history — the extension never changes anything on its own. Open the panel from the **Suggestions** button in the dashboard header (with a live count badge) or press `Shift+I`.
+
+| Rule | Fires when | Accept does |
+|------|-----------|-------------|
+| Snoozed task | a task has been snoozed 5+ times (threshold configurable) | moves it to **Someday / Maybe** |
+| Weekday pattern | a recurring series is usually completed on one weekday (5+ completions, 60%+ concentration) but the open occurrence is due on another | reschedules the open occurrence to that weekday |
+| Load balancing | a day in the coming week has 4+ tasks due while another day has none | moves one flexible task to the empty day nearest the pile-up |
+| Stalled task | an open task hasn't been edited for N days (default 14, shared with the Stalled filter) and has no near-term due date | moves it to **Someday / Maybe** |
+| Recurring adherence | a series is completed on time 50% of the time or less (5+ dated completions) | opens the repeat-rule editor |
+
+**Behaviour:**
+- **Advisory only** — every suggestion has explicit **Accept** and **Dismiss** buttons; nothing is ever applied without a click
+- **Dismissals persist** (stored in extension settings, synced across devices) — a dismissed or accepted suggestion stays hidden for 30 days, then may return if its trigger still holds
+- **Local heuristics only** — no AI, no API calls, nothing leaves your graph
+- The snoozed-task rule reads the **activity log**; if you've disabled the log, that rule stays silent and the panel says so in a footnote
+- Accepted changes go through the normal attribute paths, so they land in the task's activity log tagged as coming from a suggestion
+- Master switch (on by default); per-rule toggles and the snooze threshold live under **Advanced Dashboard options** in settings
+- Computed shortly after the dashboard opens and cached for 30 seconds — no background cost while the dashboard is closed
+
+Also available programmatically via `bt_get_suggestions` in the Extension Tools API.
+
 ---
 
 ## 🗓 Today widget & Today badge (optional)
@@ -462,7 +487,8 @@ Core settings:
 Additional sections appear only when enabled.
 - **Today Badge** — sidebar badge label, overdue inclusion, background and text colours.
 - **Today Widget** — layout (panel or Roam-style inline), placement (top/bottom), heading level, overdue/completed inclusion, and per-button toggles (complete, snooze +1d, snooze +7d, copy ref, open sidebar).
-- **Advanced Dashboard options** unlock the Weekly Review step toggles (on/off per step; order is fixed).
+- **Advanced Dashboard options** unlock the Weekly Review step toggles (on/off per step; order is fixed) and the per-rule Smart Suggestions toggles with the snooze threshold.
+- **Smart Suggestions** — master enable/disable switch (on by default).
 - **Advanced Project/Context/Waiting options** let you exclude specific pages from picklists.
 - **Customise attribute names (advanced)** exposes settings to rename Better Tasks attribute labels/keys (including the notes attribute).
 - **Activity log** settings: master enable/disable toggle, opt-in title-edit logging, optional maximum entries cap per task.
