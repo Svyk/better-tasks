@@ -1943,8 +1943,8 @@ function SuggestionsPanel({ controller, language, onClose, onCountChange }) {
       const tpl = tPath(["suggestions", "actions", "setDue"], lang) || "Reschedule to {{date}}";
       return tpl.replace(/\{\{date\}\}/g, formatDay(sugg.action?.payload?.dueISO || ""));
     }
-    if (type === "edit-repeat") return tPath(["suggestions", "actions", "editRepeat"], lang) || "Review repeat rule";
-    return s("accept", "Accept");
+    if (type === "edit-repeat") return tPath(["suggestions", "actions", "editRepeat"], lang) || "Edit repeat rule";
+    return s("accept", "Apply");
   };
 
   const removeFromList = (id) => {
@@ -1993,7 +1993,7 @@ function SuggestionsPanel({ controller, language, onClose, onCountChange }) {
         </div>
         <div className="bt-suggestions-content">
           {loading ? (
-            <div className="bt-suggestions-empty">{s("loading", "Looking for suggestions...")}</div>
+            <div className="bt-suggestions-empty">{s("loading", "Analysing tasks...")}</div>
           ) : !suggestions.length ? (
             <div className="bt-suggestions-empty">{s("empty", "No suggestions right now — nothing needs your attention.")}</div>
           ) : (

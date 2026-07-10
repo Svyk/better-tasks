@@ -841,10 +841,10 @@ export default {
       const suggestionSettings = [
         {
           id: SUGGESTIONS_ENABLED_SETTING,
-          name: tr("settings.suggestionsEnabled", "Enable Smart Suggestions"),
+          name: tr("settings.suggestionsEnabled", "Enable smart suggestions"),
           description: tr(
             "settings.suggestionsEnabledDescription",
-            "Show advisory suggestions in the dashboard (snooze patterns, weekday habits, load balancing). Nothing changes without your explicit confirmation."
+            "Show suggestions in the dashboard based on snoozing patterns, weekday habits, and workload. Changes are made only with your confirmation."
           ),
           action: {
             type: "switch",
@@ -873,7 +873,7 @@ export default {
           name: tr("settings.suggestSnoozeThreshold", "Suggestion: snooze threshold"),
           description: tr(
             "settings.suggestSnoozeThresholdDescription",
-            "Number of snoozes before a task is suggested for Someday/Maybe."
+            "Number of snoozes before suggesting that a task be moved to Someday/Maybe."
           ),
           action: {
             type: "input",
@@ -913,7 +913,7 @@ export default {
         },
         {
           id: SUGGEST_RULE_ADHERENCE_SETTING,
-          name: tr("settings.suggestRuleAdherence", "Suggestion rule: recurring adherence"),
+          name: tr("settings.suggestRuleAdherence", "Suggestion rule: recurring-task adherence"),
           description: suggestRuleDescription,
           action: suggestRuleSwitch(SUGGEST_RULE_ADHERENCE_SETTING),
         },
