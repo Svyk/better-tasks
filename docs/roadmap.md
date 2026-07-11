@@ -1,6 +1,6 @@
-# Better Tasks — Unified Roadmap (Phases 1–10)
+# Better Tasks — Unified Roadmap (Phases 1–11)
 
-This document is the **canonical Better Tasks roadmap**, integrating shipped work, in-progress phases, and planned execution through Phase 10.
+This document is the **canonical Better Tasks roadmap**, integrating shipped work, in-progress phases, and planned execution through Phase 11.
 
 ---
 
@@ -197,7 +197,7 @@ This document is the **canonical Better Tasks roadmap**, integrating shipped wor
 - ✅ Per-type step toggles in settings (independent enable/disable per review type)
 - ✅ 4 new preset views: Due Today, Completed Yesterday, Stalled Tasks, Completed (Last 30 Days)
 - ✅ Commands: Daily Review, Monthly Review (Weekly unchanged)
-- ⏳ Review history and completion stats (deferred — needs storage mechanism)
+- ➡️ Review history and completion stats — moved to Phase 11 (the storage blocker is gone: the settings-persisted store pattern and the activity log both exist now)
 
 ### Notes & Activity Log — Complete ✅
 - ✅ Freeform `BT_attrNotes::` child block (configurable label, full attribute alias/back-compat) with inline preview on dashboard rows and edit affordance in the task actions menu
@@ -245,15 +245,20 @@ This document is the **canonical Better Tasks roadmap**, integrating shipped wor
 
 ---
 
-## 🌐 Phase 10 — Ecosystem & Insights
+## 🌐 Phase 10 — Ecosystem & Insights (In progress — Roam Query Integration remaining)
 
 **Mission:** Expand outward without betraying core values.
 
-### Roam Query Integration
+### Roam Query Integration — Remaining ⏳
 - **Enhanced native query results:** MutationObserver on `{{query}}` result blocks to detect BT tasks and inject pill badges (due, project, status) — zero learning curve, users keep existing queries
 - **Page-ref consistency:** ensure all BT attributes that reference pages use `[[page refs]]` so native `{{query}}` naturally discovers BT tasks
 - **`{{bt-query}}` block renderer (optional):** simpler syntax (`{{bt-query: project="X" status="TODO"}}`) for users who don't know Datalog, with interactive task rows powered by the existing `bt_search` engine
 - **Datalog helpers:** documented query snippets for common BT filters (overdue, by project, stalled, waiting-for)
+- **Implementation notes (verified against roamdocs.fyi, 2026-07-10):**
+  - No custom block-renderer registration exists in the Alpha API, so `{{bt-query}}` must use the detect-and-mount observer technique (the RoamJS Query Builder pattern). `roam/render` was evaluated and rejected: the component would live as user-editable code blocks in the graph, is gated behind a Roam setting, and its invocation syntax embeds a graph-specific uid. Document a minimal roam/render + `bt_search` recipe as a power-user option instead.
+  - `ui.components.renderBlock` / `renderString` + `unmountNode` (documented in `.codex/roam_alpha_api_reference.md`, currently unused by BT) can render result rows as **native Roam block markup** — refs clickable, native checkbox, and the existing pill decorator should apply. Spike this before hand-rendering rows.
+  - Roam-specific `:q` additions (**not** in the local `.codex` API reference): `dnp/` symbols (`dnp/today`, `dnp/this-week-start`), `ms/` time symbols, and built-in rules `(refs-page ?title ?b)`, `(block-or-parent-refs-page ?title ?b)`, `(refs-dnp-between ?start ?end ?b)`, `(created-between ?t1 ?t2 ?b)` — these make date-window snippets (overdue, due-this-week) clean one-liners. Reference: https://roamdocs.fyi/help/roam-specific-q-additions.md
+  - `data.roamQuery()` executes native `{{query}}` syntax programmatically — not needed for `{{bt-query}}` (`bt_search` is richer) but available as a fallback.
 
 ### Quick Rescheduling — Complete ✅
 - ✅ Relative shortcuts: `+3` for 3 days from now (in date picker text input)
@@ -294,6 +299,60 @@ This document is the **canonical Better Tasks roadmap**, integrating shipped wor
 
 ---
 
+## 🧰 Phase 11 — Next Dev Candidates
+
+**Mission:** Remove daily-use friction and pay down structural debt. These are candidates, not commitments — roughly priority-ordered; promote to committed work as capacity allows.
+
+### Task Deletion (dashboard + pill menu) — High priority 🔥
+Active daily-use friction: today the only way to delete a task is View → open in graph → manually delete the blocks.
+- Delete task from the dashboard task actions (⋯) menu and the inline pill ⋯ menu
+- Bulk delete via dashboard multi-select (alongside bulk complete/snooze/edit)
+- Deletes the full task subtree: the TODO block plus metadata children, notes, and activity log (distinct from deconvert, which strips metadata but preserves the TODO)
+- Confirm dialog always — single shows task title, bulk shows count (guardrail: never silently delete user data)
+- Undo toast restoring the deleted subtree from a snapshot (existing undo-toast pattern)
+- Subtask handling decided at spec time: warn when subtasks exist; delete-with-subtasks vs re-parent structural children
+- Tasks that depended on the deleted uid are handled by the existing stale-dependency auto-clean
+- `bt_delete` / `bt_bulk_delete` Extension Tools API methods
+
+### Review History & Completion Stats (Phase 9 leftover)
+- Deferred from Phase 9 for lack of a storage mechanism — now unblocked: settings-persisted JSON store (the `bt-suggestions-dismissals` pattern: pruned, capped) or activity-log events
+- Log each review session (type, date, steps completed)
+- Review streaks and "last reviewed" indicators (review menu / dashboard header)
+- Feeds the Analytics panel and a Smart Suggestions review-cadence rule
+
+### Activity-Log-Powered Bulk Undo
+- Extend the existing undo-toast pattern from single operations to "Undo last bulk operation" (bulk metadata edits and snoozes — bulk complete already has reopen)
+- The activity log already tags every per-task event in a bulk operation with a shared `bulkId` plus `from`/`to` diffs — replay them in reverse
+- Strengthens the "all mutations reversible" guardrail; degrades gracefully when the activity log is disabled
+
+### Import (CSV / JSON)
+- The inverse of Trust & Exit exports: one-time import, not sync (heavy external sync stays deferred)
+- Round-trip Better Tasks' own CSV/JSON exports
+- Todoist / Things CSV import as an adoption path
+- Pure parser in `src/core/` with node tests; preview + confirm before any graph write
+
+### Smart Suggestions — Rule Expansion
+- Dependency-aware nudge: "this task blocks N open tasks — prioritise it"
+- Recurring pile-up detection (overdue occurrences accumulating on one series)
+- Review-cadence nudge (needs Review History above)
+- Engine is pure and clock-injected — each new rule lands with unit tests and a per-rule settings toggle
+
+### Focus Mode v2 (selective — promoted from deferred)
+- Per-subtask completion from inside the parent card (the checklist is already rendered read-only)
+- Custom Focus Mode keybindings (reuse the dashboard's JSON keybinding infrastructure)
+- Pomodoro timer stays deferred (see below)
+
+### Core Extraction & Test Coverage
+- `src/index.js` is ~18.7k lines with no automated coverage outside `src/core/`
+- Extract pure logic into `src/core/` between features — activity-log event parsing and analytics computations are the first candidates
+- No behaviour change; grows the node-tested surface
+
+### Performance Benchmark Harness
+- The "performance budgets must remain green" guardrail has no automated measurement today
+- Scripted large-graph benchmark (dashboard collect, pill render pass, suggestions computation) with recorded baselines
+
+---
+
 ## 🚫 Explicitly Deferred (Post–Phase 10)
 
 - Fully custom field systems (arbitrary user-defined attributes)
@@ -302,10 +361,7 @@ This document is the **canonical Better Tasks roadmap**, integrating shipped wor
 - Real-time collaboration features
 - Native mobile app (beyond responsive web)
 - Time-of-day scheduling (hour-level granularity — Roam is date-level; use ICS export for calendar integration)
-- Dash Focus Mode Phase 2
-  - ⏳ Optional Pomodoro timer (deferred to v2)
-  - ⏳ Per-subtask completion from inside the parent card (deferred to v2)
-  - ⏳ Custom Focus Mode keybindings (deferred — currently shares dashboard defaults)
+- Focus Mode — optional Pomodoro timer (per-subtask completion and custom keybindings promoted to Phase 11)
 
 ### Multi-Language NLP — Deprioritised
 - Recurrence rule parsing beyond English — ~500-800 lines per language of keyword/regex mapping; low ROI given most Roam users type English recurrence rules regardless of UI language
@@ -323,7 +379,8 @@ This document is the **canonical Better Tasks roadmap**, integrating shipped wor
 | 8 | Structural Differentiation | Dependencies, subtasks — unique value |
 | 9 | Human Flow | Execution mode, keyboard-first |
 | 10 | Confidence & Reach | Ecosystem, analytics, graceful exit |
+| 11 | Friction & Debt | Daily-use polish, reversibility, structural health |
 
 ---
 
-*Last updated: 2026-04-09 — Focus / Do Mode shipped*
+*Last updated: 2026-07-10 — Smart Suggestions shipped; Phase 11 (Next Dev Candidates) added*
