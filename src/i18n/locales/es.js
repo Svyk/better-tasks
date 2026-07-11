@@ -50,7 +50,7 @@ const locale = {
     advancedDashboard: "Opciones avanzadas del panel",
     advancedDashboardDescription: "Mostrar ajustes de los pasos de revisión (Diaria, Semanal, Mensual).",
     keyboardBindings: "Atajos de teclado (JSON)",
-    keyboardBindingsDescription: "Personaliza los atajos de teclado del panel. Teclas: moveDown, moveUp, open, complete, snooze, focusSearch, toggleSelect, selectAll, escape. Predeterminado: j, k, Enter, c, s, /, x, shift+a, Escape.",
+    keyboardBindingsDescription: "Personaliza los atajos de teclado del panel. Teclas: moveDown, moveUp, open, complete, snooze, focusSearch, toggleSelect, selectAll, escape, delete. Predeterminado: j, k, Enter, c, s, /, x, shift+a, Escape, d.",
     reviewStepDescription: "Incluir este paso en el flujo de revisión (el orden es fijo).",
     reviewStepNextActions: "Revisión Semanal: Próximas Acciones",
     reviewStepWaitingFor: "Revisión Semanal: En Espera",
@@ -165,7 +165,8 @@ const locale = {
     dueDate: "Fecha de vencimiento",
     completionDate: "Fecha de completado",
     close: "Cerrar",
-    tryAgain: "Reintentar"
+    tryAgain: "Reintentar",
+    delete: "Delete"
   },
   commands: {
     reinstallPresetDashViews: "Better Tasks: Reinstalar vistas predefinidas del panel",
@@ -324,7 +325,17 @@ const locale = {
     dashReviewStartFailed: "No se pudo iniciar la revisión semanal.",
     dependencyAdded: "Dependencia añadida",
     dependencyRemoved: "Dependencia eliminada",
-    circularDependency: "Se detectó una dependencia circular"
+    circularDependency: "Se detectó una dependencia circular",
+    deleteConfirmTitle: "Delete Task",
+    deleteConfirmBulkTitle: "Delete Tasks",
+    deleteConfirmMessage: 'Permanently delete "<b>{{title}}</b>" and all of its child blocks?',
+    deleteConfirmSubtaskWarning: "This will also delete {{count}} subtask(s).",
+    deleteConfirmOrphanWarning: "{{count}} linked subtask(s) elsewhere will lose their parent link.",
+    deleteConfirmBulkMessage: "Permanently delete {{count}} tasks and all of their child blocks?",
+    taskDeleted: "Task deleted",
+    taskRestored: "Task restored",
+    deleteFailed: "Could not delete task.",
+    restoreFailed: "Could not restore task."
   },
   dashboard: {
     topbarTitle: "Panel de Better Tasks",
@@ -557,7 +568,9 @@ const locale = {
       },
       undo: "Deshacer",
       undoSuccess: "Cambios deshechos",
-      undoFailed: "Error al deshacer"
+      undoFailed: "Error al deshacer",
+      deleteSelected: "Delete",
+      deletedCount: (n) => n === 1 ? "Deleted 1 task" : `Deleted ${n} tasks`
     }
   },
   analytics: {
@@ -680,7 +693,8 @@ const locale = {
     addDepends: "Añadir dependencia",
     editDepends: "Editar dependencias",
     removeDepends: "Eliminar todas las dependencias",
-    metaHeading: "Metadatos"
+    metaHeading: "Metadatos",
+    deleteTask: "Delete task"
   },
   taskMenu: {
     setProject: "Establecer proyecto",
@@ -704,7 +718,8 @@ const locale = {
     editNotes: "Editar notas",
     removeNotes: "Eliminar notas",
     activityHeading: "Actividad",
-    viewActivity: "Ver actividad"
+    viewActivity: "Ver actividad",
+    deleteTask: "Delete task"
   },
   series: {
     title: "Serie recurrente",

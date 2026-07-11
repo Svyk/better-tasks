@@ -50,7 +50,7 @@ const locale = {
     advancedDashboard: "Options avancées du tableau de bord",
     advancedDashboardDescription: "Afficher les réglages des étapes de revue (Quotidienne, Hebdomadaire, Mensuelle).",
     keyboardBindings: "Raccourcis clavier (JSON)",
-    keyboardBindingsDescription: "Personnalisez les raccourcis clavier du tableau de bord. Touches : moveDown, moveUp, open, complete, snooze, focusSearch, toggleSelect, selectAll, escape. Par défaut : j, k, Enter, c, s, /, x, shift+a, Escape.",
+    keyboardBindingsDescription: "Personnalisez les raccourcis clavier du tableau de bord. Touches : moveDown, moveUp, open, complete, snooze, focusSearch, toggleSelect, selectAll, escape, delete. Par défaut : j, k, Enter, c, s, /, x, shift+a, Escape, d.",
     reviewStepDescription: "Inclure cette étape dans le flux de revue (l'ordre est fixe).",
     reviewStepNextActions: "Revue Hebdomadaire : Prochaines Actions",
     reviewStepWaitingFor: "Revue Hebdomadaire : En Attente",
@@ -165,7 +165,8 @@ const locale = {
     dueDate: "Date d'échéance",
     completionDate: "Date d’achèvement",
     close: "Fermer",
-    tryAgain: "Réessayer"
+    tryAgain: "Réessayer",
+    delete: "Delete"
   },
   commands: {
     reinstallPresetDashViews: "Better Tasks : Réinstaller les vues prédéfinies du tableau de bord",
@@ -324,7 +325,17 @@ const locale = {
     dashReviewStartFailed: "Impossible de démarrer la revue hebdomadaire.",
     dependencyAdded: "Dépendance ajoutée",
     dependencyRemoved: "Dépendance supprimée",
-    circularDependency: "Dépendance circulaire détectée"
+    circularDependency: "Dépendance circulaire détectée",
+    deleteConfirmTitle: "Delete Task",
+    deleteConfirmBulkTitle: "Delete Tasks",
+    deleteConfirmMessage: 'Permanently delete "<b>{{title}}</b>" and all of its child blocks?',
+    deleteConfirmSubtaskWarning: "This will also delete {{count}} subtask(s).",
+    deleteConfirmOrphanWarning: "{{count}} linked subtask(s) elsewhere will lose their parent link.",
+    deleteConfirmBulkMessage: "Permanently delete {{count}} tasks and all of their child blocks?",
+    taskDeleted: "Task deleted",
+    taskRestored: "Task restored",
+    deleteFailed: "Could not delete task.",
+    restoreFailed: "Could not restore task."
   },
   dashboard: {
     topbarTitle: "Tableau de Bord Better Tasks",
@@ -557,7 +568,9 @@ const locale = {
       },
       undo: "Annuler",
       undoSuccess: "Modifications annulées",
-      undoFailed: "Échec de l'annulation"
+      undoFailed: "Échec de l'annulation",
+      deleteSelected: "Delete",
+      deletedCount: (n) => n === 1 ? "Deleted 1 task" : `Deleted ${n} tasks`
     }
   },
   analytics: {
@@ -680,7 +693,8 @@ const locale = {
     addDepends: "Ajouter une dépendance",
     editDepends: "Modifier les dépendances",
     removeDepends: "Supprimer toutes les dépendances",
-    metaHeading: "Métadonnées"
+    metaHeading: "Métadonnées",
+    deleteTask: "Delete task"
   },
   taskMenu: {
     setProject: "Définir le projet",
@@ -704,7 +718,8 @@ const locale = {
     editNotes: "Modifier les notes",
     removeNotes: "Supprimer les notes",
     activityHeading: "Activité",
-    viewActivity: "Voir l'activité"
+    viewActivity: "Voir l'activité",
+    deleteTask: "Delete task"
   },
   series: {
     title: "Série récurrente",

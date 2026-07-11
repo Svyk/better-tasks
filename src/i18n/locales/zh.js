@@ -50,7 +50,7 @@ const locale = {
     advancedDashboard: "仪表板高级选项",
     advancedDashboardDescription: "显示复盘步骤的设置（每日、每周、每月）。",
     keyboardBindings: "键盘绑定 (JSON)",
-    keyboardBindingsDescription: "自定义仪表板键盘快捷键。按键: moveDown, moveUp, open, complete, snooze, focusSearch, toggleSelect, selectAll, escape。默认: j, k, Enter, c, s, /, x, shift+a, Escape。",
+    keyboardBindingsDescription: "自定义仪表板键盘快捷键。按键: moveDown, moveUp, open, complete, snooze, focusSearch, toggleSelect, selectAll, escape, delete。默认: j, k, Enter, c, s, /, x, shift+a, Escape, d。",
     reviewStepDescription: "将此步骤包含在复盘流程中（顺序固定）。",
     reviewStepNextActions: "每周复盘：下一步行动",
     reviewStepWaitingFor: "每周复盘：等待中",
@@ -165,7 +165,8 @@ const locale = {
     dueDate: "截止日期",
     completionDate: "完成日期",
     close: "关闭",
-    tryAgain: "重试"
+    tryAgain: "重试",
+    delete: "Delete"
   },
   commands: {
     reinstallPresetDashViews: "Better Tasks：重新安装仪表板预设视图",
@@ -324,7 +325,17 @@ const locale = {
     dashReviewStartFailed: "无法开始每周复盘。",
     dependencyAdded: "已添加依赖",
     dependencyRemoved: "已移除依赖",
-    circularDependency: "检测到循环依赖"
+    circularDependency: "检测到循环依赖",
+    deleteConfirmTitle: "Delete Task",
+    deleteConfirmBulkTitle: "Delete Tasks",
+    deleteConfirmMessage: 'Permanently delete "<b>{{title}}</b>" and all of its child blocks?',
+    deleteConfirmSubtaskWarning: "This will also delete {{count}} subtask(s).",
+    deleteConfirmOrphanWarning: "{{count}} linked subtask(s) elsewhere will lose their parent link.",
+    deleteConfirmBulkMessage: "Permanently delete {{count}} tasks and all of their child blocks?",
+    taskDeleted: "Task deleted",
+    taskRestored: "Task restored",
+    deleteFailed: "Could not delete task.",
+    restoreFailed: "Could not restore task."
   },
   dashboard: {
     topbarTitle: "Better Tasks 仪表板",
@@ -557,7 +568,9 @@ const locale = {
       },
       undo: "撤销",
       undoSuccess: "已撤销更改",
-      undoFailed: "撤销失败"
+      undoFailed: "撤销失败",
+      deleteSelected: "Delete",
+      deletedCount: (n) => n === 1 ? "Deleted 1 task" : `Deleted ${n} tasks`
     }
   },
   analytics: {
@@ -680,7 +693,8 @@ const locale = {
     addDepends: "添加依赖",
     editDepends: "编辑依赖",
     removeDepends: "移除所有依赖",
-    metaHeading: "元数据"
+    metaHeading: "元数据",
+    deleteTask: "Delete task"
   },
   taskMenu: {
     setProject: "设置项目",
@@ -704,7 +718,8 @@ const locale = {
     editNotes: "编辑备注",
     removeNotes: "移除备注",
     activityHeading: "活动",
-    viewActivity: "查看活动"
+    viewActivity: "查看活动",
+    deleteTask: "Delete task"
   },
   series: {
     title: "重复系列",

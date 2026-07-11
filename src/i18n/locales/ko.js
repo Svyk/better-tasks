@@ -50,7 +50,7 @@ const locale = {
     advancedDashboard: "대시보드 고급 옵션",
     advancedDashboardDescription: "리뷰 단계 설정 표시(일일, 주간, 월간).",
     keyboardBindings: "키보드 바인딩 (JSON)",
-    keyboardBindingsDescription: "대시보드 키보드 단축키를 사용자 지정합니다. 키: moveDown, moveUp, open, complete, snooze, focusSearch, toggleSelect, selectAll, escape. 기본값: j, k, Enter, c, s, /, x, shift+a, Escape.",
+    keyboardBindingsDescription: "대시보드 키보드 단축키를 사용자 지정합니다. 키: moveDown, moveUp, open, complete, snooze, focusSearch, toggleSelect, selectAll, escape, delete. 기본값: j, k, Enter, c, s, /, x, shift+a, Escape, d.",
     reviewStepDescription: "이 단계를 리뷰 흐름에 포함(순서 고정).",
     reviewStepNextActions: "주간 리뷰: 다음 행동",
     reviewStepWaitingFor: "주간 리뷰: 대기 항목",
@@ -165,7 +165,8 @@ const locale = {
     dueDate: "마감일",
     completionDate: "완료일",
     close: "닫기",
-    tryAgain: "다시 시도"
+    tryAgain: "다시 시도",
+    delete: "Delete"
   },
   commands: {
     reinstallPresetDashViews: "Better Tasks: 프리셋 대시보드 뷰 다시 설치",
@@ -324,7 +325,17 @@ const locale = {
     dashReviewStartFailed: "주간 리뷰를 시작하지 못했습니다.",
     dependencyAdded: "의존성이 추가되었습니다",
     dependencyRemoved: "의존성이 제거되었습니다",
-    circularDependency: "순환 의존성이 감지되었습니다"
+    circularDependency: "순환 의존성이 감지되었습니다",
+    deleteConfirmTitle: "Delete Task",
+    deleteConfirmBulkTitle: "Delete Tasks",
+    deleteConfirmMessage: 'Permanently delete "<b>{{title}}</b>" and all of its child blocks?',
+    deleteConfirmSubtaskWarning: "This will also delete {{count}} subtask(s).",
+    deleteConfirmOrphanWarning: "{{count}} linked subtask(s) elsewhere will lose their parent link.",
+    deleteConfirmBulkMessage: "Permanently delete {{count}} tasks and all of their child blocks?",
+    taskDeleted: "Task deleted",
+    taskRestored: "Task restored",
+    deleteFailed: "Could not delete task.",
+    restoreFailed: "Could not restore task."
   },
   dashboard: {
     topbarTitle: "Better Tasks 대시보드",
@@ -557,7 +568,9 @@ const locale = {
       },
       undo: "실행 취소",
       undoSuccess: "변경 사항을 되돌렸습니다",
-      undoFailed: "실행 취소 실패"
+      undoFailed: "실행 취소 실패",
+      deleteSelected: "Delete",
+      deletedCount: (n) => n === 1 ? "Deleted 1 task" : `Deleted ${n} tasks`
     }
   },
   analytics: {
@@ -680,7 +693,8 @@ const locale = {
     addDepends: "의존성 추가",
     editDepends: "의존성 편집",
     removeDepends: "모든 의존성 제거",
-    metaHeading: "메타데이터"
+    metaHeading: "메타데이터",
+    deleteTask: "Delete task"
   },
   taskMenu: {
     setProject: "프로젝트 설정",
@@ -704,7 +718,8 @@ const locale = {
     editNotes: "메모 편집",
     removeNotes: "메모 제거",
     activityHeading: "활동",
-    viewActivity: "활동 보기"
+    viewActivity: "활동 보기",
+    deleteTask: "Delete task"
   },
   series: {
     title: "반복 시리즈",

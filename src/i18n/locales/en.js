@@ -50,7 +50,7 @@ const locale = {
     advancedDashboard: "Advanced Dashboard options",
     advancedDashboardDescription: "Show settings for review steps (Daily, Weekly, Monthly).",
     keyboardBindings: "Keyboard bindings (JSON)",
-    keyboardBindingsDescription: "Customise dashboard keyboard shortcuts. Keys: moveDown, moveUp, open, complete, snooze, focusSearch, toggleSelect, selectAll, escape. Default: j, k, Enter, c, s, /, x, shift+a, Escape.",
+    keyboardBindingsDescription: "Customise dashboard keyboard shortcuts. Keys: moveDown, moveUp, open, complete, snooze, focusSearch, toggleSelect, selectAll, escape, delete. Default: j, k, Enter, c, s, /, x, shift+a, Escape, d.",
     reviewStepDescription: "Include this step in the review flow (order is fixed).",
     reviewStepNextActions: "Weekly Review: Next Actions",
     reviewStepWaitingFor: "Weekly Review: Waiting For",
@@ -165,7 +165,8 @@ const locale = {
     dueDate: "Due date",
     completionDate: "Completion date",
     close: "Close",
-    tryAgain: "Try again"
+    tryAgain: "Try again",
+    delete: "Delete"
   },
   commands: {
     reinstallPresetDashViews: "Better Tasks: Reinstall preset dashboard views",
@@ -324,7 +325,17 @@ const locale = {
     dashReviewStartFailed: "Unable to start weekly review.",
     dependencyAdded: "Dependency added",
     dependencyRemoved: "Dependency removed",
-    circularDependency: "Circular dependency detected"
+    circularDependency: "Circular dependency detected",
+    deleteConfirmTitle: "Delete Task",
+    deleteConfirmBulkTitle: "Delete Tasks",
+    deleteConfirmMessage: 'Permanently delete "<b>{{title}}</b>" and all of its child blocks?',
+    deleteConfirmSubtaskWarning: "This will also delete {{count}} subtask(s).",
+    deleteConfirmOrphanWarning: "{{count}} linked subtask(s) elsewhere will lose their parent link.",
+    deleteConfirmBulkMessage: "Permanently delete {{count}} tasks and all of their child blocks?",
+    taskDeleted: "Task deleted",
+    taskRestored: "Task restored",
+    deleteFailed: "Could not delete task.",
+    restoreFailed: "Could not restore task."
   },
   dashboard: {
     topbarTitle: "Better Tasks Dashboard",
@@ -557,7 +568,9 @@ const locale = {
       },
       undo: "Undo",
       undoSuccess: "Changes undone",
-      undoFailed: "Undo failed"
+      undoFailed: "Undo failed",
+      deleteSelected: "Delete",
+      deletedCount: (n) => n === 1 ? "Deleted 1 task" : `Deleted ${n} tasks`
     }
   },
   analytics: {
@@ -680,7 +693,8 @@ const locale = {
     addDepends: "Add dependency",
     editDepends: "Edit dependencies",
     removeDepends: "Remove all dependencies",
-    metaHeading: "Metadata"
+    metaHeading: "Metadata",
+    deleteTask: "Delete task"
   },
   taskMenu: {
     setProject: "Set project",
@@ -704,7 +718,8 @@ const locale = {
     editNotes: "Edit notes",
     removeNotes: "Remove notes",
     activityHeading: "Activity",
-    viewActivity: "View activity"
+    viewActivity: "View activity",
+    deleteTask: "Delete task"
   },
   series: {
     title: "Recurring Series",

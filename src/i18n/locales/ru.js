@@ -50,7 +50,7 @@ const locale = {
     advancedDashboard: "Расширенные опции панели",
     advancedDashboardDescription: "Показать настройки шагов обзора (Ежедневный, Еженедельный, Ежемесячный).",
     keyboardBindings: "Привязки клавиш (JSON)",
-    keyboardBindingsDescription: "Настройте клавиатурные сокращения панели. Клавиши: moveDown, moveUp, open, complete, snooze, focusSearch, toggleSelect, selectAll, escape. По умолчанию: j, k, Enter, c, s, /, x, shift+a, Escape.",
+    keyboardBindingsDescription: "Настройте клавиатурные сокращения панели. Клавиши: moveDown, moveUp, open, complete, snooze, focusSearch, toggleSelect, selectAll, escape, delete. По умолчанию: j, k, Enter, c, s, /, x, shift+a, Escape, d.",
     reviewStepDescription: "Включить этот шаг в поток обзора (порядок фиксированный).",
     reviewStepNextActions: "Еженедельный обзор: Следующие действия",
     reviewStepWaitingFor: "Еженедельный обзор: Ожидание",
@@ -165,7 +165,8 @@ const locale = {
     dueDate: "Срок",
     completionDate: "Дата выполнения",
     close: "Закрыть",
-    tryAgain: "Повторить"
+    tryAgain: "Повторить",
+    delete: "Delete"
   },
   commands: {
     reinstallPresetDashViews: "Better Tasks: Переустановить предустановленные виды панели",
@@ -324,7 +325,17 @@ const locale = {
     dashReviewStartFailed: "Не удалось запустить еженедельный обзор.",
     dependencyAdded: "Зависимость добавлена",
     dependencyRemoved: "Зависимость удалена",
-    circularDependency: "Обнаружена циклическая зависимость"
+    circularDependency: "Обнаружена циклическая зависимость",
+    deleteConfirmTitle: "Delete Task",
+    deleteConfirmBulkTitle: "Delete Tasks",
+    deleteConfirmMessage: 'Permanently delete "<b>{{title}}</b>" and all of its child blocks?',
+    deleteConfirmSubtaskWarning: "This will also delete {{count}} subtask(s).",
+    deleteConfirmOrphanWarning: "{{count}} linked subtask(s) elsewhere will lose their parent link.",
+    deleteConfirmBulkMessage: "Permanently delete {{count}} tasks and all of their child blocks?",
+    taskDeleted: "Task deleted",
+    taskRestored: "Task restored",
+    deleteFailed: "Could not delete task.",
+    restoreFailed: "Could not restore task."
   },
   dashboard: {
     topbarTitle: "Панель Better Tasks",
@@ -557,7 +568,9 @@ const locale = {
       },
       undo: "Отменить",
       undoSuccess: "Изменения отменены",
-      undoFailed: "Не удалось отменить"
+      undoFailed: "Не удалось отменить",
+      deleteSelected: "Delete",
+      deletedCount: (n) => n === 1 ? "Deleted 1 task" : `Deleted ${n} tasks`
     }
   },
   analytics: {
@@ -680,7 +693,8 @@ const locale = {
     addDepends: "Добавить зависимость",
     editDepends: "Изменить зависимости",
     removeDepends: "Удалить все зависимости",
-    metaHeading: "Метаданные"
+    metaHeading: "Метаданные",
+    deleteTask: "Delete task"
   },
   taskMenu: {
     setProject: "Задать проект",
@@ -704,7 +718,8 @@ const locale = {
     editNotes: "Редактировать заметки",
     removeNotes: "Удалить заметки",
     activityHeading: "Активность",
-    viewActivity: "Показать активность"
+    viewActivity: "Показать активность",
+    deleteTask: "Delete task"
   },
   series: {
     title: "Повторяющаяся серия",

@@ -50,7 +50,7 @@ const locale = {
     advancedDashboard: "خيارات متقدمة للوحة التحكم",
     advancedDashboardDescription: "إظهار إعدادات خطوات المراجعة (اليومية، الأسبوعية، الشهرية).",
     keyboardBindings: "اختصارات لوحة المفاتيح (JSON)",
-    keyboardBindingsDescription: "خصّص اختصارات لوحة مفاتيح لوحة التحكم. المفاتيح: moveDown, moveUp, open, complete, snooze, focusSearch, toggleSelect, selectAll, escape. الافتراضي: j, k, Enter, c, s, /, x, shift+a, Escape.",
+    keyboardBindingsDescription: "خصّص اختصارات لوحة مفاتيح لوحة التحكم. المفاتيح: moveDown, moveUp, open, complete, snooze, focusSearch, toggleSelect, selectAll, escape, delete. الافتراضي: j, k, Enter, c, s, /, x, shift+a, Escape, d.",
     reviewStepDescription: "تضمين هذه الخطوة في مسار المراجعة (الترتيب ثابت).",
     reviewStepNextActions: "مراجعة أسبوعية: الإجراءات التالية",
     reviewStepWaitingFor: "مراجعة أسبوعية: قيد الانتظار",
@@ -165,7 +165,8 @@ const locale = {
     dueDate: "تاريخ الاستحقاق",
     completionDate: "تاريخ الإكمال",
     close: "إغلاق",
-    tryAgain: "حاول مرة أخرى"
+    tryAgain: "حاول مرة أخرى",
+    delete: "Delete"
   },
   commands: {
     reinstallPresetDashViews: "Better Tasks: إعادة تثبيت عروض لوحة التحكم الافتراضية",
@@ -324,7 +325,17 @@ const locale = {
     dashReviewStartFailed: "تعذّر بدء المراجعة الأسبوعية.",
     dependencyAdded: "تمت إضافة التبعية",
     dependencyRemoved: "تمت إزالة التبعية",
-    circularDependency: "تم اكتشاف تبعية دائرية"
+    circularDependency: "تم اكتشاف تبعية دائرية",
+    deleteConfirmTitle: "Delete Task",
+    deleteConfirmBulkTitle: "Delete Tasks",
+    deleteConfirmMessage: 'Permanently delete "<b>{{title}}</b>" and all of its child blocks?',
+    deleteConfirmSubtaskWarning: "This will also delete {{count}} subtask(s).",
+    deleteConfirmOrphanWarning: "{{count}} linked subtask(s) elsewhere will lose their parent link.",
+    deleteConfirmBulkMessage: "Permanently delete {{count}} tasks and all of their child blocks?",
+    taskDeleted: "Task deleted",
+    taskRestored: "Task restored",
+    deleteFailed: "Could not delete task.",
+    restoreFailed: "Could not restore task."
   },
   dashboard: {
     topbarTitle: "لوحة Better Tasks",
@@ -557,7 +568,9 @@ const locale = {
       },
       undo: "تراجع",
       undoSuccess: "تم التراجع عن التغييرات",
-      undoFailed: "فشل التراجع"
+      undoFailed: "فشل التراجع",
+      deleteSelected: "Delete",
+      deletedCount: (n) => n === 1 ? "Deleted 1 task" : `Deleted ${n} tasks`
     }
   },
   analytics: {
@@ -680,7 +693,8 @@ const locale = {
     addDepends: "إضافة تبعية",
     editDepends: "تعديل التبعيات",
     removeDepends: "إزالة جميع التبعيات",
-    metaHeading: "البيانات الوصفية"
+    metaHeading: "البيانات الوصفية",
+    deleteTask: "Delete task"
   },
   taskMenu: {
     setProject: "تعيين المشروع",
@@ -704,7 +718,8 @@ const locale = {
     editNotes: "تعديل الملاحظات",
     removeNotes: "إزالة الملاحظات",
     activityHeading: "النشاط",
-    viewActivity: "عرض النشاط"
+    viewActivity: "عرض النشاط",
+    deleteTask: "Delete task"
   },
   series: {
     title: "سلسلة متكررة",

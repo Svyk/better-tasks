@@ -50,7 +50,7 @@ const locale = {
     advancedDashboard: "ダッシュボードの詳細オプション",
     advancedDashboardDescription: "レビューステップの設定を表示（日次、週次、月次）。",
     keyboardBindings: "キーボード割り当て (JSON)",
-    keyboardBindingsDescription: "ダッシュボードのキーボードショートカットをカスタマイズします。キー: moveDown, moveUp, open, complete, snooze, focusSearch, toggleSelect, selectAll, escape。デフォルト: j, k, Enter, c, s, /, x, shift+a, Escape。",
+    keyboardBindingsDescription: "ダッシュボードのキーボードショートカットをカスタマイズします。キー: moveDown, moveUp, open, complete, snooze, focusSearch, toggleSelect, selectAll, escape, delete。デフォルト: j, k, Enter, c, s, /, x, shift+a, Escape, d。",
     reviewStepDescription: "このステップをレビューフローに含める（順序は固定）。",
     reviewStepNextActions: "週次レビュー：次のアクション",
     reviewStepWaitingFor: "週次レビュー：待機中",
@@ -165,7 +165,8 @@ const locale = {
     dueDate: "期限日",
     completionDate: "完了日",
     close: "閉じる",
-    tryAgain: "再試行"
+    tryAgain: "再試行",
+    delete: "Delete"
   },
   commands: {
     reinstallPresetDashViews: "Better Tasks：プリセットダッシュボードビューを再インストール",
@@ -324,7 +325,17 @@ const locale = {
     dashReviewStartFailed: "週次レビューを開始できませんでした。",
     dependencyAdded: "依存関係を追加しました",
     dependencyRemoved: "依存関係を削除しました",
-    circularDependency: "循環依存が検出されました"
+    circularDependency: "循環依存が検出されました",
+    deleteConfirmTitle: "Delete Task",
+    deleteConfirmBulkTitle: "Delete Tasks",
+    deleteConfirmMessage: 'Permanently delete "<b>{{title}}</b>" and all of its child blocks?',
+    deleteConfirmSubtaskWarning: "This will also delete {{count}} subtask(s).",
+    deleteConfirmOrphanWarning: "{{count}} linked subtask(s) elsewhere will lose their parent link.",
+    deleteConfirmBulkMessage: "Permanently delete {{count}} tasks and all of their child blocks?",
+    taskDeleted: "Task deleted",
+    taskRestored: "Task restored",
+    deleteFailed: "Could not delete task.",
+    restoreFailed: "Could not restore task."
   },
   dashboard: {
     topbarTitle: "Better Tasksダッシュボード",
@@ -557,7 +568,9 @@ const locale = {
       },
       undo: "元に戻す",
       undoSuccess: "変更を元に戻しました",
-      undoFailed: "元に戻す操作に失敗しました"
+      undoFailed: "元に戻す操作に失敗しました",
+      deleteSelected: "Delete",
+      deletedCount: (n) => n === 1 ? "Deleted 1 task" : `Deleted ${n} tasks`
     }
   },
   analytics: {
@@ -680,7 +693,8 @@ const locale = {
     addDepends: "依存関係を追加",
     editDepends: "依存関係を編集",
     removeDepends: "すべての依存関係を削除",
-    metaHeading: "メタデータ"
+    metaHeading: "メタデータ",
+    deleteTask: "Delete task"
   },
   taskMenu: {
     setProject: "プロジェクトを設定",
@@ -704,7 +718,8 @@ const locale = {
     editNotes: "メモを編集",
     removeNotes: "メモを削除",
     activityHeading: "活動",
-    viewActivity: "活動を表示"
+    viewActivity: "活動を表示",
+    deleteTask: "Delete task"
   },
   series: {
     title: "繰り返しシリーズ",

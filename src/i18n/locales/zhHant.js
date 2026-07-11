@@ -50,7 +50,7 @@ const locale = {
     advancedDashboard: "儀表板進階選項",
     advancedDashboardDescription: "顯示複盤步驟的設定（每日、每週、每月）。",
     keyboardBindings: "鍵盤綁定 (JSON)",
-    keyboardBindingsDescription: "自訂儀表板鍵盤快捷鍵。按鍵: moveDown, moveUp, open, complete, snooze, focusSearch, toggleSelect, selectAll, escape。預設: j, k, Enter, c, s, /, x, shift+a, Escape。",
+    keyboardBindingsDescription: "自訂儀表板鍵盤快捷鍵。按鍵: moveDown, moveUp, open, complete, snooze, focusSearch, toggleSelect, selectAll, escape, delete。預設: j, k, Enter, c, s, /, x, shift+a, Escape, d。",
     reviewStepDescription: "將此步驟包含在複盤流程中（順序固定）。",
     reviewStepNextActions: "每週複盤：下一步行動",
     reviewStepWaitingFor: "每週複盤：等待中",
@@ -165,7 +165,8 @@ const locale = {
     dueDate: "到期日期",
     completionDate: "完成日期",
     close: "關閉",
-    tryAgain: "再試一次"
+    tryAgain: "再試一次",
+    delete: "Delete"
   },
   commands: {
     reinstallPresetDashViews: "Better Tasks：重新安裝儀表板預設檢視",
@@ -324,7 +325,17 @@ const locale = {
     dashReviewStartFailed: "無法開始每週複盤。",
     dependencyAdded: "已新增相依",
     dependencyRemoved: "已移除相依",
-    circularDependency: "偵測到循環相依"
+    circularDependency: "偵測到循環相依",
+    deleteConfirmTitle: "Delete Task",
+    deleteConfirmBulkTitle: "Delete Tasks",
+    deleteConfirmMessage: 'Permanently delete "<b>{{title}}</b>" and all of its child blocks?',
+    deleteConfirmSubtaskWarning: "This will also delete {{count}} subtask(s).",
+    deleteConfirmOrphanWarning: "{{count}} linked subtask(s) elsewhere will lose their parent link.",
+    deleteConfirmBulkMessage: "Permanently delete {{count}} tasks and all of their child blocks?",
+    taskDeleted: "Task deleted",
+    taskRestored: "Task restored",
+    deleteFailed: "Could not delete task.",
+    restoreFailed: "Could not restore task."
   },
   dashboard: {
     topbarTitle: "Better Tasks 儀表板",
@@ -557,7 +568,9 @@ const locale = {
       },
       undo: "復原",
       undoSuccess: "已復原變更",
-      undoFailed: "復原失敗"
+      undoFailed: "復原失敗",
+      deleteSelected: "Delete",
+      deletedCount: (n) => n === 1 ? "Deleted 1 task" : `Deleted ${n} tasks`
     }
   },
   analytics: {
@@ -680,7 +693,8 @@ const locale = {
     addDepends: "新增相依",
     editDepends: "編輯相依",
     removeDepends: "移除所有相依",
-    metaHeading: "中繼資料"
+    metaHeading: "中繼資料",
+    deleteTask: "Delete task"
   },
   taskMenu: {
     setProject: "設定專案",
@@ -704,7 +718,8 @@ const locale = {
     editNotes: "編輯備註",
     removeNotes: "移除備註",
     activityHeading: "活動",
-    viewActivity: "檢視活動"
+    viewActivity: "檢視活動",
+    deleteTask: "Delete task"
   },
   series: {
     title: "重複系列",

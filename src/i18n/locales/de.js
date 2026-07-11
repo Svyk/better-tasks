@@ -50,7 +50,7 @@ const locale = {
     advancedDashboard: "Erweiterte Dashboard-Optionen",
     advancedDashboardDescription: "Einstellungen für Rückschau-Schritte (Täglich, Wöchentlich, Monatlich) anzeigen.",
     keyboardBindings: "Tastaturbelegungen (JSON)",
-    keyboardBindingsDescription: "Dashboard-Tastenkürzel anpassen. Tasten: moveDown, moveUp, open, complete, snooze, focusSearch, toggleSelect, selectAll, escape. Standard: j, k, Enter, c, s, /, x, shift+a, Escape.",
+    keyboardBindingsDescription: "Dashboard-Tastenkürzel anpassen. Tasten: moveDown, moveUp, open, complete, snooze, focusSearch, toggleSelect, selectAll, escape, delete. Standard: j, k, Enter, c, s, /, x, shift+a, Escape, d.",
     reviewStepDescription: "Diesen Schritt in den Rückschau-Ablauf aufnehmen (Reihenfolge ist fest).",
     reviewStepNextActions: "Wochenrückschau: Nächste Aktionen",
     reviewStepWaitingFor: "Wochenrückschau: Warten auf",
@@ -165,7 +165,8 @@ const locale = {
     dueDate: "Fälligkeitsdatum",
     completionDate: "Erledigungsdatum",
     close: "Schließen",
-    tryAgain: "Erneut versuchen"
+    tryAgain: "Erneut versuchen",
+    delete: "Delete"
   },
   commands: {
     reinstallPresetDashViews: "Better Tasks: Voreingestellte Dashboard-Ansichten neu installieren",
@@ -324,7 +325,17 @@ const locale = {
     dashReviewStartFailed: "Wochenrückschau konnte nicht gestartet werden.",
     dependencyAdded: "Abhängigkeit hinzugefügt",
     dependencyRemoved: "Abhängigkeit entfernt",
-    circularDependency: "Zirkuläre Abhängigkeit erkannt"
+    circularDependency: "Zirkuläre Abhängigkeit erkannt",
+    deleteConfirmTitle: "Delete Task",
+    deleteConfirmBulkTitle: "Delete Tasks",
+    deleteConfirmMessage: 'Permanently delete "<b>{{title}}</b>" and all of its child blocks?',
+    deleteConfirmSubtaskWarning: "This will also delete {{count}} subtask(s).",
+    deleteConfirmOrphanWarning: "{{count}} linked subtask(s) elsewhere will lose their parent link.",
+    deleteConfirmBulkMessage: "Permanently delete {{count}} tasks and all of their child blocks?",
+    taskDeleted: "Task deleted",
+    taskRestored: "Task restored",
+    deleteFailed: "Could not delete task.",
+    restoreFailed: "Could not restore task."
   },
   dashboard: {
     topbarTitle: "Better Tasks Dashboard",
@@ -557,7 +568,9 @@ const locale = {
       },
       undo: "Rückgängig",
       undoSuccess: "Änderungen rückgängig gemacht",
-      undoFailed: "Rückgängig fehlgeschlagen"
+      undoFailed: "Rückgängig fehlgeschlagen",
+      deleteSelected: "Delete",
+      deletedCount: (n) => n === 1 ? "Deleted 1 task" : `Deleted ${n} tasks`
     }
   },
   analytics: {
@@ -680,7 +693,8 @@ const locale = {
     addDepends: "Abhängigkeit hinzufügen",
     editDepends: "Abhängigkeiten bearbeiten",
     removeDepends: "Alle Abhängigkeiten entfernen",
-    metaHeading: "Metadaten"
+    metaHeading: "Metadaten",
+    deleteTask: "Delete task"
   },
   taskMenu: {
     setProject: "Projekt setzen",
@@ -704,7 +718,8 @@ const locale = {
     editNotes: "Notizen bearbeiten",
     removeNotes: "Notizen entfernen",
     activityHeading: "Aktivität",
-    viewActivity: "Aktivität anzeigen"
+    viewActivity: "Aktivität anzeigen",
+    deleteTask: "Delete task"
   },
   series: {
     title: "Wiederkehrende Serie",
