@@ -570,7 +570,7 @@ const locale = {
       undoSuccess: "تم التراجع عن التغييرات",
       undoFailed: "فشل التراجع",
       deleteSelected: "حذف",
-      deletedCount: (n) => `تم حذف ${n} من المهام`
+      deletedCount: (n) => n === 1 ? "تم حذف مهمة واحدة" : `تم حذف ${n} من المهام`
     }
   },
   analytics: {

@@ -719,7 +719,7 @@ const locale = {
     editWaiting: "대기 항목 편집",
     removeWaiting: "대기 항목 제거",
     priorityCycle: "우선순위(클릭하여 순환)",
-    energyCycle: "에너지(클릭하여 전환)",
+    energyCycle: "에너지 (클릭하여 전환)",
     cycleGtd: "GTD 순환",
     setDepends: "의존성 설정",
     editDepends: "의존성 편집",
