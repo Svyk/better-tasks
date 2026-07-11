@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   normalizePulledSubtree,
+  normalizePropKeys,
   flattenSubtreeToCreateSteps,
   collectTreeUids,
   countTaskBlocks,
@@ -43,7 +44,8 @@ test("normalizePulledSubtree: passes optional fields through only when present",
   assert.equal(n.uid, "x");
   assert.equal(n.string, "hi");
   assert.equal(n.order, 3);
-  assert.equal(n.props, props, "same reference — not cloned");
+  assert.deepEqual(n.props, props, "deep-equal normalized copy — not the same reference");
+  assert.notEqual(n.props, props, "props is a copy, not the passed-through reference");
   assert.equal(n.open, false);
   assert.equal(n.heading, 2);
   assert.equal(n.textAlign, "right");
@@ -305,3 +307,86 @@ test("dropNestedSelections: non-array input returns []", () => {
   assert.deepEqual(dropNestedSelections(null, {}), []);
   assert.deepEqual(dropNestedSelections(undefined, {}), []);
 });
+
+// ========================= normalizePropKeys / props normalization =========================
+
+test("normalizePulledSubtree: real-graph colon-keyed props are stripped recursively (root)", () => {
+  const n = normalizePulledSubtree({
+    ":block/uid": "root",
+    ":block/string": "Pay rent",
+    ":block/order": 0,
+    ":block/props": {
+      ":repeat": "every Friday",
+      ":rt": {
+        ":tz": "Australia/Melbourne",
+        ":id": "5dkvhi",
+        ":processed": 1783749980721,
+        ":lastCompleted": "2026-07-11T06:06:20.721Z",
+      },
+    },
+  });
+  assert.deepEqual(n.props, {
+    repeat: "every Friday",
+    rt: {
+      tz: "Australia/Melbourne",
+      id: "5dkvhi",
+      processed: 1783749980721,
+      lastCompleted: "2026-07-11T06:06:20.721Z",
+    },
+  });
+});
+
+test("normalizePulledSubtree: grandchild colon-keyed props are stripped recursively at depth", () => {
+  const tree = normalizePulledSubtree({
+    ":block/uid": "root",
+    ":block/children": [
+      {
+        ":block/uid": "child",
+        ":block/children": [
+          {
+            ":block/uid": "grandchild",
+            ":block/props": {
+              ":bt": { ":kind": "event", ":event": "complete", ":ts": 1783749980778 },
+            },
+          },
+        ],
+      },
+    ],
+  });
+  assert.deepEqual(tree.children[0].children[0].props, {
+    bt: { kind: "event", event: "complete", ts: 1783749980778 },
+  });
+});
+
+test("normalizePulledSubtree: already-plain props come through deep-equal unchanged (idempotence)", () => {
+  const n = normalizePulledSubtree({
+    ":block/uid": "x",
+    ":block/props": { rt: { tz: "x" } },
+  });
+  assert.deepEqual(n.props, { rt: { tz: "x" } });
+  assert.notEqual(n.props, { rt: { tz: "x" } }, "a fresh normalized copy, not the input reference");
+});
+
+test("normalizePropKeys: arrays get element keys stripped; primitives and null survive; ':' becomes ''", () => {
+  assert.deepEqual(
+    normalizePropKeys([{ ":a": 1 }, { b: 2 }, "str", 42, true, null]),
+    [{ a: 1 }, { b: 2 }, "str", 42, true, null],
+  );
+  assert.equal(normalizePropKeys(null), null);
+  assert.equal(normalizePropKeys(undefined), undefined);
+  assert.equal(normalizePropKeys("s"), "s");
+  assert.equal(normalizePropKeys(42), 42);
+  assert.deepEqual(normalizePropKeys({ ":": "v" }), { "": "v" });
+});
+
+test("normalizePulledSubtree: nodes without props still have props === undefined after normalize", () => {
+  const n = normalizePulledSubtree({ ":block/uid": "no-props" });
+  assert.equal(n.props, undefined);
+  const withChildren = normalizePulledSubtree({
+    ":block/uid": "root",
+    ":block/children": [{ ":block/uid": "c1" }],
+  });
+  assert.equal(withChildren.props, undefined);
+  assert.equal(withChildren.children[0].props, undefined);
+});
+

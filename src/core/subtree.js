@@ -4,6 +4,12 @@
 // recursive datascript pull before deletion, then rebuilt on undo. This module
 // only shapes and walks the captured tree — it knows nothing about Roam, the
 // DOM, or any injected accessors. Zero dependencies.
+//
+// `:block/props` values are key-normalized copies: Roam's recursive pull API
+// returns props objects whose keys are namespaced keywords WITH LEADING COLONS
+// (e.g. ":repeat", ":rt": {":tz": ...}). The restore path writes props back
+// via updateBlock, which expects PLAIN keys — so every leading colon is
+// stripped (recursively) at capture time rather than at restore time.
 
 /**
  * Normalize a single node from a Roam recursive pull.
@@ -13,8 +19,10 @@
  * and sorts children ascending by `order` at every depth. Ties keep their
  * relative input position (a stable sort).
  *
- * `props` is passed through by reference — callers rely on the same object so
- * they can round-trip it back into Roam on undo without a deep-clone.
+ * `props` is a key-normalized COPY: every leading colon on prop keys (and on
+ * keys of nested plain objects/arrays within props) is stripped recursively,
+ * so the restored object uses plain keys (`rt`, `tz`, …) as expected by
+ * updateBlock. The original pull object is never mutated.
  *
  * Returns null for null/undefined input or any node missing `:block/uid`.
  */
@@ -33,7 +41,7 @@ export function normalizePulledSubtree(raw) {
     children: [],
   };
 
-  if (":block/props" in raw) node.props = raw[":block/props"];
+  if (":block/props" in raw) node.props = normalizePropKeys(raw[":block/props"]);
   if (":block/open" in raw) node.open = raw[":block/open"];
   if (":block/heading" in raw) node.heading = raw[":block/heading"];
   if (":block/text-align" in raw) node.textAlign = raw[":block/text-align"];
@@ -46,6 +54,45 @@ export function normalizePulledSubtree(raw) {
   }
 
   return node;
+}
+
+/**
+ * Strip one leading colon from every key in a props value, recursively.
+ *
+ * Roam's recursive pull API returns props objects whose keys are namespaced
+ * keywords WITH LEADING COLONS (":rt", ":tz", …). The restore path writes
+ * props back via updateBlock, which expects PLAIN keys. This helper produces a
+ * deep copy with a single leading colon stripped from each key at position 0,
+ * recursing into nested plain objects and arrays. Primitives, null, undefined,
+ * and Date instances pass through unchanged. The input is never mutated.
+ *
+ * Exported so the impure fallback-walk snapshot path can reuse the same
+ * normalization when it rebuilds props from a non-pull source.
+ *
+ * - Plain object: returns a NEW object; each key has one leading ":" stripped
+ *   if present (":rt" → "rt", "rt" → "rt" unchanged, ":" → ""), and each
+ *   value is normalizePropKeys(value).
+ * - Array: returns a NEW array; each element is passed through
+ *   normalizePropKeys (object elements get keys stripped; primitives pass
+ *   through).
+ * - string/number/boolean/null/undefined and Date instances: returned as-is.
+ */
+export function normalizePropKeys(value) {
+  if (value === null || value === undefined) return value;
+  if (typeof value !== "object") return value;
+  if (value instanceof Date) return value;
+  if (Array.isArray(value)) {
+    return value.map(normalizePropKeys);
+  }
+  const out = {};
+  for (const key of Object.keys(value)) {
+    const stripped =
+      typeof key === "string" && key.length > 0 && key.charCodeAt(0) === 58
+        ? key.slice(1)
+        : key;
+    out[stripped] = normalizePropKeys(value[key]);
+  }
+  return out;
 }
 
 /**
