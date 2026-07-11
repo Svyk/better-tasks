@@ -9960,7 +9960,17 @@ export default {
       const cancelLabel = options?.cancelLabel || "Cancel";
       return new Promise((resolve) => {
         let settled = false;
-        const finish = (v) => { if (!settled) { settled = true; resolve(v); } };
+        // Modal flag: the dashboard's keydown handler goes inert while a BT
+        // confirm dialog is open (else Escape falls through and clears the
+        // selection; `c`/`s`/`d` would act on rows behind the overlay).
+        if (typeof window !== "undefined") window.__btConfirmDialogOpen = true;
+        const finish = (v) => {
+          if (!settled) {
+            settled = true;
+            if (typeof window !== "undefined") window.__btConfirmDialogOpen = false;
+            resolve(v);
+          }
+        };
         iziToast.question({
           theme: "light",
           color: "black",
@@ -18604,6 +18614,7 @@ export default {
         window.__btInlineMetaCache?.clear?.();
       } catch (_) {}
       delete window.__btInlineMetaCache;
+      delete window.__btConfirmDialogOpen;
       try {
         window.__btPillSignatureCache?.clear?.();
       } catch (_) {}

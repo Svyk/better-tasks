@@ -3811,6 +3811,8 @@ export default function DashboardApp({ controller, onRequestClose, onHeaderReady
       // Don't capture when a modal overlay is open
       if (seriesViewTaskRef.current) return;
       if (focusModeActiveRef.current) return;
+      // BT confirm dialog (e.g. task deletion) — let iziToast own the keys
+      if (typeof window !== "undefined" && window.__btConfirmDialogOpen) return;
 
       const keybindings = { ...DEFAULT_KEYBINDINGS, ...(controller?.getKeyboardBindings?.() || {}) };
       const key = normalizeKey(event);
