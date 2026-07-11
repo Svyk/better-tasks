@@ -10075,6 +10075,11 @@ export default {
         }
         invalidateBlockCache(taskUid);
         invalidateBlockedState(taskUid);
+        activeDashboardController?.notifyBlockChange?.(taskUid);
+        // Clear pill signature cache so the pill re-renders with updated blocked state
+        if (typeof window !== "undefined" && window.__btPillSignatureCache) {
+          window.__btPillSignatureCache.delete(taskUid);
+        }
       }
       const explicitTaskUids = new Set();
       for (const entry of snapshot.externalRefs?.explicitSubtasks || []) {
@@ -10086,6 +10091,11 @@ export default {
         await removeChildAttrsForType(taskUid, "parent", attrNames);
         invalidateBlockCache(taskUid);
         invalidateBlockedState(taskUid);
+        activeDashboardController?.notifyBlockChange?.(taskUid);
+        // Clear pill signature cache so the pill re-renders with updated blocked state
+        if (typeof window !== "undefined" && window.__btPillSignatureCache) {
+          window.__btPillSignatureCache.delete(taskUid);
+        }
       }
     }
 
@@ -10108,6 +10118,11 @@ export default {
         }
         invalidateBlockCache(taskUid);
         invalidateBlockedState(taskUid);
+        activeDashboardController?.notifyBlockChange?.(taskUid);
+        // Clear pill signature cache so the pill re-renders with updated blocked state
+        if (typeof window !== "undefined" && window.__btPillSignatureCache) {
+          window.__btPillSignatureCache.delete(taskUid);
+        }
       }
       const explicitByTask = new Map();
       for (const entry of snapshot.externalRefs?.explicitSubtasks || []) {
@@ -10119,6 +10134,11 @@ export default {
         await ensureChildAttrForType(taskUid, "parent", `((${refUid}))`, attrNames);
         invalidateBlockCache(taskUid);
         invalidateBlockedState(taskUid);
+        activeDashboardController?.notifyBlockChange?.(taskUid);
+        // Clear pill signature cache so the pill re-renders with updated blocked state
+        if (typeof window !== "undefined" && window.__btPillSignatureCache) {
+          window.__btPillSignatureCache.delete(taskUid);
+        }
       }
     }
 
@@ -10165,6 +10185,8 @@ export default {
       try {
         void syncPillsForSurface(lastAttrSurface);
       } catch (_) { /* ignore */ }
+      // Delay pill refresh past the 500ms decorateBlockPills debounce window so dependent pills re-render
+      setTimeout(() => { try { void syncPillsForSurface(lastAttrSurface); } catch (_) { /* ignore */ } }, 600);
       requestTodayWidgetRenderOnDnp(120, true);
     }
 
@@ -10223,6 +10245,8 @@ export default {
       activeDashboardController?.notifyBlockChange?.(snapshot.rootUid);
       requestTodayWidgetRenderOnDnp(120, true);
       void syncPillsForSurface(lastAttrSurface);
+      // Delay pill refresh past the 500ms decorateBlockPills debounce window so dependent pills re-render
+      setTimeout(() => { try { void syncPillsForSurface(lastAttrSurface); } catch (_) { /* ignore */ } }, 600);
       return true;
     }
 
