@@ -166,7 +166,7 @@ const locale = {
     completionDate: "完了日",
     close: "閉じる",
     tryAgain: "再試行",
-    delete: "Delete"
+    delete: "削除"
   },
   commands: {
     reinstallPresetDashViews: "Better Tasks：プリセットダッシュボードビューを再インストール",
@@ -326,16 +326,16 @@ const locale = {
     dependencyAdded: "依存関係を追加しました",
     dependencyRemoved: "依存関係を削除しました",
     circularDependency: "循環依存が検出されました",
-    deleteConfirmTitle: "Delete Task",
-    deleteConfirmBulkTitle: "Delete Tasks",
-    deleteConfirmMessage: 'Permanently delete "<b>{{title}}</b>" and all of its child blocks?',
-    deleteConfirmSubtaskWarning: "This will also delete {{count}} subtask(s).",
-    deleteConfirmOrphanWarning: "{{count}} linked subtask(s) elsewhere will lose their parent link.",
-    deleteConfirmBulkMessage: "Permanently delete {{count}} tasks and all of their child blocks?",
-    taskDeleted: "Task deleted",
-    taskRestored: "Task restored",
-    deleteFailed: "Could not delete task.",
-    restoreFailed: "Could not restore task."
+    deleteConfirmTitle: "タスクを削除",
+    deleteConfirmBulkTitle: "タスクを削除",
+    deleteConfirmMessage: '"<b>{{title}}</b>" とそのすべての子ブロックを完全に削除しますか？',
+    deleteConfirmSubtaskWarning: "{{count}}件のサブタスクも削除されます。",
+    deleteConfirmOrphanWarning: "他の場所にリンクされた{{count}}件のサブタスクは親リンクを失います。",
+    deleteConfirmBulkMessage: "{{count}}件のタスクとそのすべての子ブロックを完全に削除しますか？",
+    taskDeleted: "タスクを削除しました",
+    taskRestored: "タスクを復元しました",
+    deleteFailed: "タスクを削除できませんでした。",
+    restoreFailed: "タスクを復元できませんでした。"
   },
   dashboard: {
     topbarTitle: "Better Tasksダッシュボード",
@@ -569,8 +569,8 @@ const locale = {
       undo: "元に戻す",
       undoSuccess: "変更を元に戻しました",
       undoFailed: "元に戻す操作に失敗しました",
-      deleteSelected: "Delete",
-      deletedCount: (n) => n === 1 ? "Deleted 1 task" : `Deleted ${n} tasks`
+      deleteSelected: "削除",
+      deletedCount: (n) => `${n}件のタスクを削除しました`
     }
   },
   analytics: {
@@ -694,9 +694,21 @@ const locale = {
     editDepends: "依存関係を編集",
     removeDepends: "すべての依存関係を削除",
     metaHeading: "メタデータ",
-    deleteTask: "Delete task"
+    deleteTask: "タスクを削除"
   },
   taskMenu: {
+    addRepeat: "繰り返しを追加",
+    editRepeat: "繰り返しを編集",
+    removeRepeat: "繰り返しを削除",
+    addStart: "開始を追加",
+    editStart: "開始を編集",
+    removeStart: "開始を削除",
+    addDefer: "延期を追加",
+    editDefer: "延期を編集",
+    removeDefer: "延期を削除",
+    addDue: "期限を追加",
+    editDue: "期限を編集",
+    removeDue: "期限を削除",
     setProject: "プロジェクトを設定",
     editProject: "プロジェクトを編集",
     removeProject: "プロジェクトを削除",
@@ -719,7 +731,7 @@ const locale = {
     removeNotes: "メモを削除",
     activityHeading: "活動",
     viewActivity: "活動を表示",
-    deleteTask: "Delete task"
+    deleteTask: "タスクを削除"
   },
   series: {
     title: "繰り返しシリーズ",

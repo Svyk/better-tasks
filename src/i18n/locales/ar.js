@@ -166,7 +166,7 @@ const locale = {
     completionDate: "تاريخ الإكمال",
     close: "إغلاق",
     tryAgain: "حاول مرة أخرى",
-    delete: "Delete"
+    delete: "حذف"
   },
   commands: {
     reinstallPresetDashViews: "Better Tasks: إعادة تثبيت عروض لوحة التحكم الافتراضية",
@@ -326,16 +326,16 @@ const locale = {
     dependencyAdded: "تمت إضافة التبعية",
     dependencyRemoved: "تمت إزالة التبعية",
     circularDependency: "تم اكتشاف تبعية دائرية",
-    deleteConfirmTitle: "Delete Task",
-    deleteConfirmBulkTitle: "Delete Tasks",
-    deleteConfirmMessage: 'Permanently delete "<b>{{title}}</b>" and all of its child blocks?',
-    deleteConfirmSubtaskWarning: "This will also delete {{count}} subtask(s).",
-    deleteConfirmOrphanWarning: "{{count}} linked subtask(s) elsewhere will lose their parent link.",
-    deleteConfirmBulkMessage: "Permanently delete {{count}} tasks and all of their child blocks?",
-    taskDeleted: "Task deleted",
-    taskRestored: "Task restored",
-    deleteFailed: "Could not delete task.",
-    restoreFailed: "Could not restore task."
+    deleteConfirmTitle: "حذف المهمة",
+    deleteConfirmBulkTitle: "حذف المهام",
+    deleteConfirmMessage: 'حذف "<b>{{title}}</b>" وكل الكتل التابعة لها نهائياً؟',
+    deleteConfirmSubtaskWarning: "سيؤدي ذلك أيضاً إلى حذف {{count}} مهمة فرعية.",
+    deleteConfirmOrphanWarning: "ستفقد {{count}} مهمة فرعية مرتبطة في مكان آخر رابطها بالأصل.",
+    deleteConfirmBulkMessage: "حذف {{count}} مهمة وكل الكتل التابعة لها نهائياً؟",
+    taskDeleted: "تم حذف المهمة",
+    taskRestored: "تمت استعادة المهمة",
+    deleteFailed: "تعذّر حذف المهمة.",
+    restoreFailed: "تعذّرت استعادة المهمة."
   },
   dashboard: {
     topbarTitle: "لوحة Better Tasks",
@@ -569,8 +569,8 @@ const locale = {
       undo: "تراجع",
       undoSuccess: "تم التراجع عن التغييرات",
       undoFailed: "فشل التراجع",
-      deleteSelected: "Delete",
-      deletedCount: (n) => n === 1 ? "Deleted 1 task" : `Deleted ${n} tasks`
+      deleteSelected: "حذف",
+      deletedCount: (n) => `المهام المحذوفة: ${n}`
     }
   },
   analytics: {
@@ -694,9 +694,21 @@ const locale = {
     editDepends: "تعديل التبعيات",
     removeDepends: "إزالة جميع التبعيات",
     metaHeading: "البيانات الوصفية",
-    deleteTask: "Delete task"
+    deleteTask: "حذف المهمة"
   },
   taskMenu: {
+    addRepeat: "إضافة التكرار",
+    editRepeat: "تعديل التكرار",
+    removeRepeat: "إزالة التكرار",
+    addStart: "إضافة البدء",
+    editStart: "تعديل البدء",
+    removeStart: "إزالة البدء",
+    addDefer: "إضافة التأجيل",
+    editDefer: "تعديل التأجيل",
+    removeDefer: "إزالة التأجيل",
+    addDue: "إضافة الاستحقاق",
+    editDue: "تعديل الاستحقاق",
+    removeDue: "إزالة الاستحقاق",
     setProject: "تعيين المشروع",
     editProject: "تعديل المشروع",
     removeProject: "إزالة المشروع",
@@ -719,7 +731,7 @@ const locale = {
     removeNotes: "إزالة الملاحظات",
     activityHeading: "النشاط",
     viewActivity: "عرض النشاط",
-    deleteTask: "Delete task"
+    deleteTask: "حذف المهمة"
   },
   series: {
     title: "سلسلة متكررة",

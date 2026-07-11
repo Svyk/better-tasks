@@ -166,7 +166,7 @@ const locale = {
     completionDate: "Дата выполнения",
     close: "Закрыть",
     tryAgain: "Повторить",
-    delete: "Delete"
+    delete: "Удалить"
   },
   commands: {
     reinstallPresetDashViews: "Better Tasks: Переустановить предустановленные виды панели",
@@ -326,16 +326,16 @@ const locale = {
     dependencyAdded: "Зависимость добавлена",
     dependencyRemoved: "Зависимость удалена",
     circularDependency: "Обнаружена циклическая зависимость",
-    deleteConfirmTitle: "Delete Task",
-    deleteConfirmBulkTitle: "Delete Tasks",
-    deleteConfirmMessage: 'Permanently delete "<b>{{title}}</b>" and all of its child blocks?',
-    deleteConfirmSubtaskWarning: "This will also delete {{count}} subtask(s).",
-    deleteConfirmOrphanWarning: "{{count}} linked subtask(s) elsewhere will lose their parent link.",
-    deleteConfirmBulkMessage: "Permanently delete {{count}} tasks and all of their child blocks?",
-    taskDeleted: "Task deleted",
-    taskRestored: "Task restored",
-    deleteFailed: "Could not delete task.",
-    restoreFailed: "Could not restore task."
+    deleteConfirmTitle: "Удалить задачу",
+    deleteConfirmBulkTitle: "Удалить задачи",
+    deleteConfirmMessage: 'Навсегда удалить "<b>{{title}}</b>" и все дочерние блоки?',
+    deleteConfirmSubtaskWarning: "Это также удалит подзадачи: {{count}}.",
+    deleteConfirmOrphanWarning: "Связанные подзадачи в других местах потеряют родительскую ссылку: {{count}}.",
+    deleteConfirmBulkMessage: "Навсегда удалить задачи ({{count}}) и все их дочерние блоки?",
+    taskDeleted: "Задача удалена",
+    taskRestored: "Задача восстановлена",
+    deleteFailed: "Не удалось удалить задачу.",
+    restoreFailed: "Не удалось восстановить задачу."
   },
   dashboard: {
     topbarTitle: "Панель Better Tasks",
@@ -569,8 +569,8 @@ const locale = {
       undo: "Отменить",
       undoSuccess: "Изменения отменены",
       undoFailed: "Не удалось отменить",
-      deleteSelected: "Delete",
-      deletedCount: (n) => n === 1 ? "Deleted 1 task" : `Deleted ${n} tasks`
+      deleteSelected: "Удалить",
+      deletedCount: (n) => `Удалено задач: ${n}`
     }
   },
   analytics: {
@@ -694,9 +694,21 @@ const locale = {
     editDepends: "Изменить зависимости",
     removeDepends: "Удалить все зависимости",
     metaHeading: "Метаданные",
-    deleteTask: "Delete task"
+    deleteTask: "Удалить задачу"
   },
   taskMenu: {
+    addRepeat: "Добавить повтор",
+    editRepeat: "Изменить повтор",
+    removeRepeat: "Удалить повтор",
+    addStart: "Добавить начало",
+    editStart: "Изменить начало",
+    removeStart: "Удалить начало",
+    addDefer: "Добавить отложить",
+    editDefer: "Изменить отложить",
+    removeDefer: "Удалить отложить",
+    addDue: "Добавить срок",
+    editDue: "Изменить срок",
+    removeDue: "Удалить срок",
     setProject: "Задать проект",
     editProject: "Изменить проект",
     removeProject: "Удалить проект",
@@ -719,7 +731,7 @@ const locale = {
     removeNotes: "Удалить заметки",
     activityHeading: "Активность",
     viewActivity: "Показать активность",
-    deleteTask: "Delete task"
+    deleteTask: "Удалить задачу"
   },
   series: {
     title: "Повторяющаяся серия",

@@ -697,6 +697,18 @@ const locale = {
     deleteTask: "Delete task"
   },
   taskMenu: {
+    addRepeat: "Add repeat",
+    editRepeat: "Edit repeat",
+    removeRepeat: "Remove repeat",
+    addStart: "Add start",
+    editStart: "Edit start",
+    removeStart: "Remove start",
+    addDefer: "Add defer",
+    editDefer: "Edit defer",
+    removeDefer: "Remove defer",
+    addDue: "Add due",
+    editDue: "Edit due",
+    removeDue: "Remove due",
     setProject: "Set project",
     editProject: "Edit project",
     removeProject: "Remove project",

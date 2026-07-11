@@ -166,7 +166,7 @@ const locale = {
     completionDate: "Erledigungsdatum",
     close: "Schließen",
     tryAgain: "Erneut versuchen",
-    delete: "Delete"
+    delete: "Löschen"
   },
   commands: {
     reinstallPresetDashViews: "Better Tasks: Voreingestellte Dashboard-Ansichten neu installieren",
@@ -326,16 +326,16 @@ const locale = {
     dependencyAdded: "Abhängigkeit hinzugefügt",
     dependencyRemoved: "Abhängigkeit entfernt",
     circularDependency: "Zirkuläre Abhängigkeit erkannt",
-    deleteConfirmTitle: "Delete Task",
-    deleteConfirmBulkTitle: "Delete Tasks",
-    deleteConfirmMessage: 'Permanently delete "<b>{{title}}</b>" and all of its child blocks?',
-    deleteConfirmSubtaskWarning: "This will also delete {{count}} subtask(s).",
-    deleteConfirmOrphanWarning: "{{count}} linked subtask(s) elsewhere will lose their parent link.",
-    deleteConfirmBulkMessage: "Permanently delete {{count}} tasks and all of their child blocks?",
-    taskDeleted: "Task deleted",
-    taskRestored: "Task restored",
-    deleteFailed: "Could not delete task.",
-    restoreFailed: "Could not restore task."
+    deleteConfirmTitle: "Aufgabe löschen",
+    deleteConfirmBulkTitle: "Aufgaben löschen",
+    deleteConfirmMessage: '"<b>{{title}}</b>" und alle untergeordneten Blöcke dauerhaft löschen?',
+    deleteConfirmSubtaskWarning: "Dadurch werden auch {{count}} Unteraufgabe(n) gelöscht.",
+    deleteConfirmOrphanWarning: "{{count}} verknüpfte Unteraufgabe(n) an anderer Stelle verlieren ihre übergeordnete Verknüpfung.",
+    deleteConfirmBulkMessage: "{{count}} Aufgaben und alle ihre untergeordneten Blöcke dauerhaft löschen?",
+    taskDeleted: "Aufgabe gelöscht",
+    taskRestored: "Aufgabe wiederhergestellt",
+    deleteFailed: "Aufgabe konnte nicht gelöscht werden.",
+    restoreFailed: "Aufgabe konnte nicht wiederhergestellt werden."
   },
   dashboard: {
     topbarTitle: "Better Tasks Dashboard",
@@ -569,8 +569,8 @@ const locale = {
       undo: "Rückgängig",
       undoSuccess: "Änderungen rückgängig gemacht",
       undoFailed: "Rückgängig fehlgeschlagen",
-      deleteSelected: "Delete",
-      deletedCount: (n) => n === 1 ? "Deleted 1 task" : `Deleted ${n} tasks`
+      deleteSelected: "Löschen",
+      deletedCount: (n) => `${n} Aufgabe${n === 1 ? "" : "n"} gelöscht`
     }
   },
   analytics: {
@@ -694,9 +694,21 @@ const locale = {
     editDepends: "Abhängigkeiten bearbeiten",
     removeDepends: "Alle Abhängigkeiten entfernen",
     metaHeading: "Metadaten",
-    deleteTask: "Delete task"
+    deleteTask: "Aufgabe löschen"
   },
   taskMenu: {
+    addRepeat: "Wiederholen hinzufügen",
+    editRepeat: "Wiederholen bearbeiten",
+    removeRepeat: "Wiederholen entfernen",
+    addStart: "Start hinzufügen",
+    editStart: "Start bearbeiten",
+    removeStart: "Start entfernen",
+    addDefer: "Zurückstellen hinzufügen",
+    editDefer: "Zurückstellen bearbeiten",
+    removeDefer: "Zurückstellen entfernen",
+    addDue: "Fällig hinzufügen",
+    editDue: "Fällig bearbeiten",
+    removeDue: "Fällig entfernen",
     setProject: "Projekt setzen",
     editProject: "Projekt bearbeiten",
     removeProject: "Projekt entfernen",
@@ -719,7 +731,7 @@ const locale = {
     removeNotes: "Notizen entfernen",
     activityHeading: "Aktivität",
     viewActivity: "Aktivität anzeigen",
-    deleteTask: "Delete task"
+    deleteTask: "Aufgabe löschen"
   },
   series: {
     title: "Wiederkehrende Serie",

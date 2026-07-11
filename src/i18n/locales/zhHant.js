@@ -166,7 +166,7 @@ const locale = {
     completionDate: "完成日期",
     close: "關閉",
     tryAgain: "再試一次",
-    delete: "Delete"
+    delete: "刪除"
   },
   commands: {
     reinstallPresetDashViews: "Better Tasks：重新安裝儀表板預設檢視",
@@ -326,16 +326,16 @@ const locale = {
     dependencyAdded: "已新增相依",
     dependencyRemoved: "已移除相依",
     circularDependency: "偵測到循環相依",
-    deleteConfirmTitle: "Delete Task",
-    deleteConfirmBulkTitle: "Delete Tasks",
-    deleteConfirmMessage: 'Permanently delete "<b>{{title}}</b>" and all of its child blocks?',
-    deleteConfirmSubtaskWarning: "This will also delete {{count}} subtask(s).",
-    deleteConfirmOrphanWarning: "{{count}} linked subtask(s) elsewhere will lose their parent link.",
-    deleteConfirmBulkMessage: "Permanently delete {{count}} tasks and all of their child blocks?",
-    taskDeleted: "Task deleted",
-    taskRestored: "Task restored",
-    deleteFailed: "Could not delete task.",
-    restoreFailed: "Could not restore task."
+    deleteConfirmTitle: "刪除任務",
+    deleteConfirmBulkTitle: "刪除任務",
+    deleteConfirmMessage: '永久刪除「<b>{{title}}</b>」及其所有子區塊？',
+    deleteConfirmSubtaskWarning: "這也會刪除 {{count}} 個子任務。",
+    deleteConfirmOrphanWarning: "其他位置的 {{count}} 個關聯子任務將失去父級連結。",
+    deleteConfirmBulkMessage: "永久刪除 {{count}} 個任務及其所有子區塊？",
+    taskDeleted: "任務已刪除",
+    taskRestored: "任務已復原",
+    deleteFailed: "無法刪除任務。",
+    restoreFailed: "無法復原任務。"
   },
   dashboard: {
     topbarTitle: "Better Tasks 儀表板",
@@ -569,8 +569,8 @@ const locale = {
       undo: "復原",
       undoSuccess: "已復原變更",
       undoFailed: "復原失敗",
-      deleteSelected: "Delete",
-      deletedCount: (n) => n === 1 ? "Deleted 1 task" : `Deleted ${n} tasks`
+      deleteSelected: "刪除",
+      deletedCount: (n) => `已刪除 ${n} 個任務`
     }
   },
   analytics: {
@@ -694,9 +694,21 @@ const locale = {
     editDepends: "編輯相依",
     removeDepends: "移除所有相依",
     metaHeading: "中繼資料",
-    deleteTask: "Delete task"
+    deleteTask: "刪除任務"
   },
   taskMenu: {
+    addRepeat: "新增重複",
+    editRepeat: "編輯重複",
+    removeRepeat: "移除重複",
+    addStart: "新增開始",
+    editStart: "編輯開始",
+    removeStart: "移除開始",
+    addDefer: "新增延後",
+    editDefer: "編輯延後",
+    removeDefer: "移除延後",
+    addDue: "新增到期",
+    editDue: "編輯到期",
+    removeDue: "移除到期",
     setProject: "設定專案",
     editProject: "編輯專案",
     removeProject: "移除專案",
@@ -719,7 +731,7 @@ const locale = {
     removeNotes: "移除備註",
     activityHeading: "活動",
     viewActivity: "檢視活動",
-    deleteTask: "Delete task"
+    deleteTask: "刪除任務"
   },
   series: {
     title: "重複系列",

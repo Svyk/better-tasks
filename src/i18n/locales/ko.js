@@ -166,7 +166,7 @@ const locale = {
     completionDate: "완료일",
     close: "닫기",
     tryAgain: "다시 시도",
-    delete: "Delete"
+    delete: "삭제"
   },
   commands: {
     reinstallPresetDashViews: "Better Tasks: 프리셋 대시보드 뷰 다시 설치",
@@ -326,16 +326,16 @@ const locale = {
     dependencyAdded: "의존성이 추가되었습니다",
     dependencyRemoved: "의존성이 제거되었습니다",
     circularDependency: "순환 의존성이 감지되었습니다",
-    deleteConfirmTitle: "Delete Task",
-    deleteConfirmBulkTitle: "Delete Tasks",
-    deleteConfirmMessage: 'Permanently delete "<b>{{title}}</b>" and all of its child blocks?',
-    deleteConfirmSubtaskWarning: "This will also delete {{count}} subtask(s).",
-    deleteConfirmOrphanWarning: "{{count}} linked subtask(s) elsewhere will lose their parent link.",
-    deleteConfirmBulkMessage: "Permanently delete {{count}} tasks and all of their child blocks?",
-    taskDeleted: "Task deleted",
-    taskRestored: "Task restored",
-    deleteFailed: "Could not delete task.",
-    restoreFailed: "Could not restore task."
+    deleteConfirmTitle: "작업 삭제",
+    deleteConfirmBulkTitle: "작업 삭제",
+    deleteConfirmMessage: '"<b>{{title}}</b>" 및 모든 하위 블록을 영구적으로 삭제할까요?',
+    deleteConfirmSubtaskWarning: "{{count}}개의 하위 작업도 삭제됩니다.",
+    deleteConfirmOrphanWarning: "다른 곳에 연결된 하위 작업 {{count}}개는 부모 링크를 잃게 됩니다.",
+    deleteConfirmBulkMessage: "{{count}}개 작업 및 모든 하위 블록을 영구적으로 삭제할까요?",
+    taskDeleted: "작업이 삭제되었습니다",
+    taskRestored: "작업이 복원되었습니다",
+    deleteFailed: "작업을 삭제할 수 없습니다.",
+    restoreFailed: "작업을 복원할 수 없습니다."
   },
   dashboard: {
     topbarTitle: "Better Tasks 대시보드",
@@ -569,8 +569,8 @@ const locale = {
       undo: "실행 취소",
       undoSuccess: "변경 사항을 되돌렸습니다",
       undoFailed: "실행 취소 실패",
-      deleteSelected: "Delete",
-      deletedCount: (n) => n === 1 ? "Deleted 1 task" : `Deleted ${n} tasks`
+      deleteSelected: "삭제",
+      deletedCount: (n) => `${n}개 작업 삭제됨`
     }
   },
   analytics: {
@@ -694,9 +694,21 @@ const locale = {
     editDepends: "의존성 편집",
     removeDepends: "모든 의존성 제거",
     metaHeading: "메타데이터",
-    deleteTask: "Delete task"
+    deleteTask: "작업 삭제"
   },
   taskMenu: {
+    addRepeat: "반복 추가",
+    editRepeat: "반복 편집",
+    removeRepeat: "반복 제거",
+    addStart: "시작 추가",
+    editStart: "시작 편집",
+    removeStart: "시작 제거",
+    addDefer: "연기 추가",
+    editDefer: "연기 편집",
+    removeDefer: "연기 제거",
+    addDue: "마감 추가",
+    editDue: "마감 편집",
+    removeDue: "마감 제거",
     setProject: "프로젝트 설정",
     editProject: "프로젝트 편집",
     removeProject: "프로젝트 제거",
@@ -719,7 +731,7 @@ const locale = {
     removeNotes: "메모 제거",
     activityHeading: "활동",
     viewActivity: "활동 보기",
-    deleteTask: "Delete task"
+    deleteTask: "작업 삭제"
   },
   series: {
     title: "반복 시리즈",

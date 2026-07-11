@@ -166,7 +166,7 @@ const locale = {
     completionDate: "Date d’achèvement",
     close: "Fermer",
     tryAgain: "Réessayer",
-    delete: "Delete"
+    delete: "Supprimer"
   },
   commands: {
     reinstallPresetDashViews: "Better Tasks : Réinstaller les vues prédéfinies du tableau de bord",
@@ -326,16 +326,16 @@ const locale = {
     dependencyAdded: "Dépendance ajoutée",
     dependencyRemoved: "Dépendance supprimée",
     circularDependency: "Dépendance circulaire détectée",
-    deleteConfirmTitle: "Delete Task",
-    deleteConfirmBulkTitle: "Delete Tasks",
-    deleteConfirmMessage: 'Permanently delete "<b>{{title}}</b>" and all of its child blocks?',
-    deleteConfirmSubtaskWarning: "This will also delete {{count}} subtask(s).",
-    deleteConfirmOrphanWarning: "{{count}} linked subtask(s) elsewhere will lose their parent link.",
-    deleteConfirmBulkMessage: "Permanently delete {{count}} tasks and all of their child blocks?",
-    taskDeleted: "Task deleted",
-    taskRestored: "Task restored",
-    deleteFailed: "Could not delete task.",
-    restoreFailed: "Could not restore task."
+    deleteConfirmTitle: "Supprimer la tâche",
+    deleteConfirmBulkTitle: "Supprimer les tâches",
+    deleteConfirmMessage: 'Supprimer définitivement "<b>{{title}}</b>" et tous ses blocs enfants ?',
+    deleteConfirmSubtaskWarning: "Cela supprimera aussi {{count}} sous-tâche(s).",
+    deleteConfirmOrphanWarning: "{{count}} sous-tâche(s) liée(s) ailleurs perdront leur lien parent.",
+    deleteConfirmBulkMessage: "Supprimer définitivement {{count}} tâches et tous leurs blocs enfants ?",
+    taskDeleted: "Tâche supprimée",
+    taskRestored: "Tâche restaurée",
+    deleteFailed: "Impossible de supprimer la tâche.",
+    restoreFailed: "Impossible de restaurer la tâche."
   },
   dashboard: {
     topbarTitle: "Tableau de Bord Better Tasks",
@@ -569,8 +569,8 @@ const locale = {
       undo: "Annuler",
       undoSuccess: "Modifications annulées",
       undoFailed: "Échec de l'annulation",
-      deleteSelected: "Delete",
-      deletedCount: (n) => n === 1 ? "Deleted 1 task" : `Deleted ${n} tasks`
+      deleteSelected: "Supprimer",
+      deletedCount: (n) => `${n} tâche${n === 1 ? "" : "s"} supprimée${n === 1 ? "" : "s"}`
     }
   },
   analytics: {
@@ -694,9 +694,21 @@ const locale = {
     editDepends: "Modifier les dépendances",
     removeDepends: "Supprimer toutes les dépendances",
     metaHeading: "Métadonnées",
-    deleteTask: "Delete task"
+    deleteTask: "Supprimer la tâche"
   },
   taskMenu: {
+    addRepeat: "Ajouter répétition",
+    editRepeat: "Modifier répétition",
+    removeRepeat: "Supprimer répétition",
+    addStart: "Ajouter début",
+    editStart: "Modifier début",
+    removeStart: "Supprimer début",
+    addDefer: "Ajouter report",
+    editDefer: "Modifier report",
+    removeDefer: "Supprimer report",
+    addDue: "Ajouter échéance",
+    editDue: "Modifier échéance",
+    removeDue: "Supprimer échéance",
     setProject: "Définir le projet",
     editProject: "Modifier le projet",
     removeProject: "Supprimer le projet",
@@ -719,7 +731,7 @@ const locale = {
     removeNotes: "Supprimer les notes",
     activityHeading: "Activité",
     viewActivity: "Voir l'activité",
-    deleteTask: "Delete task"
+    deleteTask: "Supprimer la tâche"
   },
   series: {
     title: "Série récurrente",

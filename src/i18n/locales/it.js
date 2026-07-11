@@ -166,7 +166,7 @@ const locale = {
     completionDate: "Data di completamento",
     close: "Chiudi",
     tryAgain: "Riprova",
-    delete: "Delete"
+    delete: "Elimina"
   },
   commands: {
     reinstallPresetDashViews: "Better Tasks: Reinstalla viste predefinite dashboard",
@@ -326,16 +326,16 @@ const locale = {
     dependencyAdded: "Dipendenza aggiunta",
     dependencyRemoved: "Dipendenza rimossa",
     circularDependency: "Dipendenza circolare rilevata",
-    deleteConfirmTitle: "Delete Task",
-    deleteConfirmBulkTitle: "Delete Tasks",
-    deleteConfirmMessage: 'Permanently delete "<b>{{title}}</b>" and all of its child blocks?',
-    deleteConfirmSubtaskWarning: "This will also delete {{count}} subtask(s).",
-    deleteConfirmOrphanWarning: "{{count}} linked subtask(s) elsewhere will lose their parent link.",
-    deleteConfirmBulkMessage: "Permanently delete {{count}} tasks and all of their child blocks?",
-    taskDeleted: "Task deleted",
-    taskRestored: "Task restored",
-    deleteFailed: "Could not delete task.",
-    restoreFailed: "Could not restore task."
+    deleteConfirmTitle: "Elimina attività",
+    deleteConfirmBulkTitle: "Elimina attività",
+    deleteConfirmMessage: 'Eliminare definitivamente "<b>{{title}}</b>" e tutti i suoi blocchi figli?',
+    deleteConfirmSubtaskWarning: "Questo eliminerà anche {{count}} sottoattività.",
+    deleteConfirmOrphanWarning: "{{count}} sottoattività collegata/e altrove perderanno il collegamento al genitore.",
+    deleteConfirmBulkMessage: "Eliminare definitivamente {{count}} attività e tutti i loro blocchi figli?",
+    taskDeleted: "Attività eliminata",
+    taskRestored: "Attività ripristinata",
+    deleteFailed: "Impossibile eliminare l'attività.",
+    restoreFailed: "Impossibile ripristinare l'attività."
   },
   dashboard: {
     topbarTitle: "Dashboard Better Tasks",
@@ -569,8 +569,8 @@ const locale = {
       undo: "Annulla",
       undoSuccess: "Modifiche annullate",
       undoFailed: "Annullamento fallito",
-      deleteSelected: "Delete",
-      deletedCount: (n) => n === 1 ? "Deleted 1 task" : `Deleted ${n} tasks`
+      deleteSelected: "Elimina",
+      deletedCount: (n) => `Attività eliminate: ${n}`
     }
   },
   analytics: {
@@ -694,9 +694,21 @@ const locale = {
     editDepends: "Modifica dipendenze",
     removeDepends: "Rimuovi tutte le dipendenze",
     metaHeading: "Metadati",
-    deleteTask: "Delete task"
+    deleteTask: "Elimina attività"
   },
   taskMenu: {
+    addRepeat: "Aggiungi ripetizione",
+    editRepeat: "Modifica ripetizione",
+    removeRepeat: "Rimuovi ripetizione",
+    addStart: "Aggiungi inizio",
+    editStart: "Modifica inizio",
+    removeStart: "Rimuovi inizio",
+    addDefer: "Aggiungi rinvia",
+    editDefer: "Modifica rinvia",
+    removeDefer: "Rimuovi rinvia",
+    addDue: "Aggiungi scadenza",
+    editDue: "Modifica scadenza",
+    removeDue: "Rimuovi scadenza",
     setProject: "Imposta progetto",
     editProject: "Modifica progetto",
     removeProject: "Rimuovi progetto",
@@ -719,7 +731,7 @@ const locale = {
     removeNotes: "Rimuovi note",
     activityHeading: "Attività",
     viewActivity: "Visualizza attività",
-    deleteTask: "Delete task"
+    deleteTask: "Elimina attività"
   },
   series: {
     title: "Serie ricorrente",
