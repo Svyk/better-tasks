@@ -319,6 +319,11 @@ const DASHBOARD_REFRESH_LOG_INTERVAL_MS = 5 * 60 * 1000;
 let dashboardWatchClearTimer = null;
 let pillScrollHandlerAttached = false;
 let pillScrollHandler = null;
+// Set by onload so onunload can tear down the main MutationObserver, which is
+// declared inside onload's closure. Without this, a dev-reload or extension
+// update leaves the previous instance's observer running — it keeps decorating
+// pills whose click handlers are bound to the dead instance's code.
+let mainObserverCleanup = null;
 let pillScrollDebounceMs = 420;
 let todayNavListener = null;
 let detachTodayNavigationListenerGlobal = null;
@@ -3438,6 +3443,13 @@ export default {
       }
       observer = null;
     }
+    mainObserverCleanup = () => {
+      if (observerReinitTimer) {
+        clearTimeout(observerReinitTimer);
+        observerReinitTimer = null;
+      }
+      disconnectObserver();
+    };
 
     function scheduleObserverRestart(delay = 200) {
       if (observerReinitTimer) clearTimeout(observerReinitTimer);
@@ -18685,6 +18697,24 @@ export default {
     }
     // window.roamAlphaAPI.ui.blockContextMenu.removeCommand({label: "Convert Better Task to plain TODO",});
     disconnectThemeObserver();
+    try {
+      mainObserverCleanup?.();
+    } catch (_) {
+      // ignore teardown errors
+    } finally {
+      mainObserverCleanup = null;
+    }
+    if (typeof document !== "undefined") {
+      try {
+        // Remove all inline pills: their click handlers close over THIS
+        // instance's code. Leaving them in the DOM lets a stale instance keep
+        // serving pill menus after a reload/update; the next instance
+        // re-decorates immediately.
+        document.querySelectorAll(".rt-pill-wrap").forEach((el) => el.remove());
+      } catch (_) {
+        // ignore DOM cleanup errors
+      }
+    }
     if (pillScrollHandlerAttached && pillScrollHandler && typeof document !== "undefined") {
       try {
         document.removeEventListener("scroll", pillScrollHandler, { passive: true, capture: true });
