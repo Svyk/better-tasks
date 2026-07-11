@@ -303,8 +303,8 @@ This document is the **canonical Better Tasks roadmap**, integrating shipped wor
 
 **Mission:** Remove daily-use friction and pay down structural debt. These are candidates, not commitments — roughly priority-ordered; promote to committed work as capacity allows.
 
-### Task Deletion (dashboard + pill menu) — High priority 🔥
-Active daily-use friction: today the only way to delete a task is View → open in graph → manually delete the blocks.
+### Task Deletion (dashboard + pill menu) — Implemented ✅ (2026-07-11, pending live-graph verification)
+Was the top daily-use friction: the only way to delete a task used to be View → open in graph → manually delete the blocks. Shipped with a snapshot-first design: BT-managed refs into the subtree are pre-cleaned so Roam never flattens them, and undo restores the tree (original uids) plus refs on both sides.
 - Delete task from the dashboard task actions (⋯) menu and the inline pill ⋯ menu
 - Bulk delete via dashboard multi-select (alongside bulk complete/snooze/edit)
 - Deletes the full task subtree: the TODO block plus metadata children, notes, and activity log (distinct from deconvert, which strips metadata but preserves the TODO)
