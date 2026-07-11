@@ -5,6 +5,12 @@
 // only shapes and walks the captured tree — it knows nothing about Roam, the
 // DOM, or any injected accessors. Zero dependencies.
 //
+// A node counts as a TASK only when its string STARTS (after optional leading
+// whitespace) with one of the four Roam TODO/DONE macros. Mid-string macros —
+// such as those that appear inside activity-log event text after Roam flattens
+// a deleted ((uid)) ref — are NOT tasks. `isTaskNodeString` encodes that test
+// and is shared by countTaskBlocks and collectTaskNodeUids.
+//
 // `:block/props` values are key-normalized copies: Roam's recursive pull API
 // returns props objects whose keys are namespaced keywords WITH LEADING COLONS
 // (e.g. ":repeat", ":rt": {":tz": ...}). The restore path writes props back
@@ -135,18 +141,31 @@ export function collectTreeUids(tree) {
 
 const TASK_MACROS = ["{{[[TODO]]}}", "{{TODO}}", "{{[[DONE]]}}", "{{DONE}}"];
 
-function isTaskString(s) {
+/**
+ * Does `s` look like a Roam task block? A node counts as a task ONLY when its
+ * string begins (after optional leading whitespace) with one of the four
+ * TODO/DONE macro forms. Mid-string macros — e.g. inside activity-log event
+ * text after Roam flattens a deleted ((uid)) ref — are NOT tasks. Matching is
+ * case-sensitive. Exported so index.js can reuse the same test where needed.
+ */
+export function isTaskNodeString(s) {
   if (typeof s !== "string") return false;
-  return TASK_MACROS.some((m) => s.includes(m));
+  const trimmed = s.trimStart();
+  return TASK_MACROS.some((m) => trimmed.startsWith(m));
+}
+
+function isTaskString(s) {
+  return isTaskNodeString(s);
 }
 
 /**
- * Count nodes whose string carries a Roam TODO or DONE macro.
+ * Count nodes whose string STARTS (after optional leading whitespace) with a
+ * Roam TODO or DONE macro — i.e. real task blocks, not activity-log event text
+ * that merely contains a mid-string macro.
  *
- * Matching is case-sensitive and looks for any of the four macro forms. When
- * `options.excludeRoot` is true (the default) the root node itself is not
- * counted even if it is a task — the common case is counting task children
- * inside a container that is being deleted.
+ * Matching is case-sensitive. When `options.excludeRoot` is true (the default)
+ * the root node itself is not counted even if it is a task — the common case
+ * is counting task children inside a container that is being deleted.
  */
 export function countTaskBlocks(tree, options = {}) {
   if (tree == null) return 0;
@@ -158,6 +177,26 @@ export function countTaskBlocks(tree, options = {}) {
   };
   walk(tree, true);
   return count;
+}
+
+/**
+ * Collect the uids of nodes whose string passes the start-anchored task test
+ * (see isTaskNodeString), depth-first pre-order.
+ *
+ * `options.excludeRoot` defaults to FALSE — unlike countTaskBlocks, the root
+ * task itself is usually wanted when collecting scan targets. Returns [] for
+ * null/undefined tree.
+ */
+export function collectTaskNodeUids(tree, options = {}) {
+  if (tree == null) return [];
+  const excludeRoot = options == null || options.excludeRoot == null ? false : options.excludeRoot;
+  const out = [];
+  const walk = (node, isRoot) => {
+    if (!(isRoot && excludeRoot) && isTaskString(node.string)) out.push(node.uid);
+    for (const child of node.children) walk(child, false);
+  };
+  walk(tree, true);
+  return out;
 }
 
 /**

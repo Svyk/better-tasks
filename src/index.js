@@ -87,6 +87,7 @@ import {
   flattenSubtreeToCreateSteps,
   collectTreeUids,
   countTaskBlocks,
+  collectTaskNodeUids,
   dropNestedSelections,
 } from "./core/subtree.js";
 import {
@@ -7767,6 +7768,52 @@ export default {
       }
     }
 
+    // For depends/parent activity events, replace each ((uid)) block ref in
+    // the DISPLAY copies of details.from/details.to with the referenced
+    // block's title (block.string with a leading task macro stripped). If the
+    // block no longer exists, the raw ((uid)) text is kept. Only the text-bound
+    // values change; the structured bt props keep the raw uids. This stops Roam
+    // from flattening a later-deleted ref into a phantom {{[[TODO]]}} macro
+    // inside the event line.
+    async function resolveActivityRefDisplay(details) {
+      if (!details || typeof details !== "object") return details;
+      const field = details.field;
+      if (field !== "depends" && field !== "parent") return details;
+      const out = { ...details };
+      for (const key of ["from", "to"]) {
+        const val = details[key];
+        if (typeof val !== "string" || !val.includes("((")) continue;
+        out[key] = await replaceBlockRefsForDisplay(val);
+      }
+      return out;
+    }
+
+    async function replaceBlockRefsForDisplay(text) {
+      const refRe = /\(\(([a-zA-Z0-9_-]+)\)\)/g;
+      const matches = [];
+      let m;
+      while ((m = refRe.exec(text)) !== null) matches.push(m);
+      if (!matches.length) return text;
+      let result = text;
+      // Apply replacements from last to first so indices stay valid.
+      for (let i = matches.length - 1; i >= 0; i -= 1) {
+        const mt = matches[i];
+        const uid = mt[1];
+        let title = null;
+        try {
+          const block = await getBlock(uid);
+          const str = block?.string;
+          if (typeof str === "string" && str.trim()) {
+            title = str.replace(/^\s*\{\{(\[\[)?(TODO|DONE)(\]\])?\}\}\s*/, "").trim();
+          }
+        } catch (_) { /* block gone — keep raw ref */ }
+        if (title) {
+          result = result.slice(0, mt.index) + title + result.slice(mt.index + mt[0].length);
+        }
+      }
+      return result;
+    }
+
     async function recordActivity(taskUid, event, details = {}) {
       if (!taskUid || !event) return;
       try {
@@ -7775,7 +7822,14 @@ export default {
         const containerUid = await ensureHistoryContainer(taskUid);
         if (!containerUid) return;
         const ts = Date.now();
-        const text = renderActivityLine(event, details, ts);
+        // Build the DISPLAY text from a copy of details whose `from`/`to` have
+        // any ((uid)) block refs resolved to the referenced block's title for
+        // depends/parent fields. The STRUCTURED props (bt map) below keep the
+        // RAW uid values — only the human-readable text changes. This prevents
+        // Roam flattening a later-deleted ref into a phantom {{[[TODO]]}}
+        // macro inside the event line.
+        const displayDetails = await resolveActivityRefDisplay(details);
+        const text = renderActivityLine(event, displayDetails, ts);
         const entryUid = window.roamAlphaAPI.util.generateUID();
         await createBlock(containerUid, "last", text, entryUid);
         const propsBt = { kind: "event", event, ts };
@@ -10006,14 +10060,21 @@ export default {
       return dependsEntry?.value ? parseDependsValue(dependsEntry.value) : [];
     }
 
-    async function collectExternalRefs(treeUids) {
-      const uidSet = new Set(Array.isArray(treeUids) ? treeUids : []);
+    async function collectExternalRefs(scanUids, treeUids) {
+      // `scanUids` — the uids to run the two datalog scans against (task nodes
+      //   only: the root + structural subtasks; only those can be dependency
+      //   targets or explicit-subtask parents).
+      // `treeUids` — EVERY uid in the deleted subtree. Used for the skip test
+      //   (`uidSet.has(taskUid)`): a referencing task that itself dies in the
+      //   deletion must be skipped even if it is not a task node.
+      const scanSet = new Set(Array.isArray(scanUids) ? scanUids : []);
+      const uidSet = new Set(Array.isArray(treeUids) ? treeUids : scanSet);
       const dependents = [];
       const explicitSubtasks = [];
       const depSeen = new Set();
       const subSeen = new Set();
       const attrNames = resolveAttributeNames();
-      for (const refUid of uidSet) {
+      for (const refUid of scanSet) {
         const depTasks = await findDependentTasks(refUid);
         for (const dep of depTasks) {
           const taskUid = dep?.uid;
@@ -10043,7 +10104,11 @@ export default {
       const parentUid = await getDirectParentUid(uid);
       if (!tree || !parentUid) return null;
       const treeUids = collectTreeUids(tree);
-      const externalRefs = await collectExternalRefs(treeUids);
+      // Only task nodes (root + structural subtasks) can be dependency targets
+      // or explicit-subtask parents — scanning every node in the subtree made a
+      // 3-task bulk delete take multiple seconds. The full treeUids list is
+      // still passed for the skip test and stored on the snapshot.
+      const externalRefs = await collectExternalRefs(collectTaskNodeUids(tree), treeUids);
       return {
         version: 1,
         rootUid: uid,

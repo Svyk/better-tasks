@@ -6,6 +6,8 @@ import {
   flattenSubtreeToCreateSteps,
   collectTreeUids,
   countTaskBlocks,
+  collectTaskNodeUids,
+  isTaskNodeString,
   dropNestedSelections,
 } from "../src/core/subtree.js";
 
@@ -247,6 +249,80 @@ test("countTaskBlocks: mixed task and non-task nodes at multiple depths", () => 
   });
   assert.equal(countTaskBlocks(tree), 3, "root excluded → a, a1, b");
   assert.equal(countTaskBlocks(tree, { excludeRoot: false }), 3, "root is not a task → same count");
+});
+
+test("countTaskBlocks: mid-string macros (activity-log / attr text) are NOT tasks", () => {
+  // Real shapes from the live graph: a Roam task macro appearing mid-string
+  // (e.g. after Roam flattens a deleted ((uid)) ref inside event text, or in
+  // an attribute value) must NOT be counted as a task block.
+  const tree = normalizePulledSubtree({
+    ":block/uid": "root",
+    ":block/string": "Inbox",
+    ":block/children": [
+      { ":block/uid": "ev", ":block/string": "2026-07-11 16:42 — depends → {{[[TODO]]}} test A" },
+      { ":block/uid": "attr", ":block/string": "BT_attrDepends:: {{[[TODO]]}} test A" },
+      { ":block/uid": "real", ":block/string": "{{[[TODO]]}} Subtask" },
+      { ":block/uid": "spaced", ":block/string": "  {{[[DONE]]}} done one" },
+    ],
+  });
+  assert.equal(countTaskBlocks(tree), 2, "only real + spaced are tasks");
+  assert.equal(countTaskBlocks(tree, { excludeRoot: false }), 2, "root is non-task → same");
+});
+
+test("isTaskNodeString: start-anchored, case-sensitive, leading whitespace OK", () => {
+  assert.equal(isTaskNodeString("{{[[TODO]]}} x"), true);
+  assert.equal(isTaskNodeString("{{TODO}} x"), true);
+  assert.equal(isTaskNodeString("{{[[DONE]]}} x"), true);
+  assert.equal(isTaskNodeString("{{DONE}} x"), true);
+  assert.equal(isTaskNodeString("  {{[[TODO]]}} x"), true, "leading whitespace allowed");
+  assert.equal(isTaskNodeString("2026-07-11 16:42 — depends → {{[[TODO]]}} test A"), false);
+  assert.equal(isTaskNodeString("BT_attrDepends:: {{[[TODO]]}} test A"), false);
+  assert.equal(isTaskNodeString("{{todo}} lower case"), false);
+  assert.equal(isTaskNodeString("just a note"), false);
+  assert.equal(isTaskNodeString(null), false);
+  assert.equal(isTaskNodeString(undefined), false);
+  assert.equal(isTaskNodeString(42), false);
+});
+
+// ========================= collectTaskNodeUids =========================
+
+test("collectTaskNodeUids: returns [] for null/undefined", () => {
+  assert.deepEqual(collectTaskNodeUids(null), []);
+  assert.deepEqual(collectTaskNodeUids(undefined), []);
+});
+
+test("collectTaskNodeUids: mixed tree returns only task-node uids in pre-order", () => {
+  const tree = normalizePulledSubtree({
+    ":block/uid": "root",
+    ":block/string": "Inbox",
+    ":block/children": [
+      {
+        ":block/uid": "a",
+        ":block/string": "{{[[DONE]]}} done",
+        ":block/children": [
+          { ":block/uid": "a1", ":block/string": "{{TODO}} nested todo" },
+          { ":block/uid": "a2", ":block/string": "2026-07-11 — {{[[TODO]]}} phantom (mid-string)" },
+        ],
+      },
+      { ":block/uid": "b", ":block/string": "{{DONE}} sibling done" },
+      { ":block/uid": "c", ":block/string": "BT_attrDepends:: {{[[TODO]]}} not a task" },
+    ],
+  });
+  assert.deepEqual(collectTaskNodeUids(tree), ["a", "a1", "b"], "root non-task excluded by default, mid-string excluded");
+});
+
+test("collectTaskNodeUids: excludeRoot both ways (default false)", () => {
+  const tree = normalizePulledSubtree({
+    ":block/uid": "root",
+    ":block/string": "{{[[TODO]]}} root task",
+    ":block/children": [
+      { ":block/uid": "c1", ":block/string": "{{TODO}} child" },
+      { ":block/uid": "c2", ":block/string": "note" },
+    ],
+  });
+  assert.deepEqual(collectTaskNodeUids(tree), ["root", "c1"], "default excludeRoot false includes root");
+  assert.deepEqual(collectTaskNodeUids(tree, { excludeRoot: false }), ["root", "c1"]);
+  assert.deepEqual(collectTaskNodeUids(tree, { excludeRoot: true }), ["c1"]);
 });
 
 // ========================= dropNestedSelections =========================
