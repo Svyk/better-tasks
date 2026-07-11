@@ -351,6 +351,10 @@ Was the top daily-use friction: the only way to delete a task used to be View �
 - The "performance budgets must remain green" guardrail has no automated measurement today
 - Scripted large-graph benchmark (dashboard collect, pill render pass, suggestions computation) with recorded baselines
 
+### i18n Count Pluralization (small polish, from Codex review 2026-07-11)
+- Static count-bearing strings (e.g. delete-confirm subtask/orphan warnings) read plural even when the count is 1
+- Fix: make those entries function-valued per locale and render via the existing `applyCountTemplate` helper — enhancement, not a translation defect
+
 ---
 
 ## 🚫 Explicitly Deferred (Post–Phase 10)
