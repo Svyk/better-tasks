@@ -8073,14 +8073,19 @@ export default {
             async (instance, toastEl) => {
               instance.hide({ transitionOut: "fadeOut" }, toastEl, "button");
               try {
-                await undo();
+                // An undo closure may signal failure by RETURNING false (e.g.
+                // restore aborted because the task's parent block is gone)
+                // instead of throwing. This wrapper owns all undo messaging —
+                // exactly one toast either way.
+                const res = await undo();
+                const failed = res === false;
                 iziToast.show({
                   theme: "light",
                   color: "black",
                   class: "betterTasks bt-toast-info",
-                  message: undoSuccess,
+                  message: failed ? undoFailed : undoSuccess,
                   position: "center",
-                  timeout: 2000,
+                  timeout: failed ? 3000 : 2000,
                   close: false,
                   closeOnEscape: true,
                   closeOnClick: true,
@@ -10287,7 +10292,9 @@ export default {
         } catch (_) { /* ignore */ }
       }
       if (!parentExists) {
-        toast(t(["toasts", "restoreFailed"], getLanguageSetting()) || "Could not restore task.");
+        // No toast here — the undo-toast wrapper renders the failure message
+        // when this returns false (a toast from both layers reads as two
+        // contradictory messages).
         return false;
       }
       const steps = flattenSubtreeToCreateSteps(snapshot.tree, snapshot.parentUid);
@@ -10535,15 +10542,19 @@ export default {
           successMessage: t(["toasts", "taskRestored"], lang) || bulkStrings.undoSuccess || "Changes undone",
           failedMessage: t(["toasts", "restoreFailed"], lang) || bulkStrings.undoFailed || "Undo failed",
           undo: async () => {
-            await withBulkOperationSuppression(async () => {
+            return await withBulkOperationSuppression(async () => {
+              let allRestored = true;
               for (const snapshot of deleted) {
-                await restoreTaskFromSnapshot(snapshot, { deferExternalRefs: true });
+                const ok = await restoreTaskFromSnapshot(snapshot, { deferExternalRefs: true });
+                if (ok === false) allRestored = false;
               }
               for (const snapshot of deleted) {
                 await restoreExternalRefs(snapshot);
               }
               await activeDashboardController?.refresh?.({ reason: "force" });
               requestTodayWidgetRenderOnDnp(120, true);
+              // false → the undo-toast wrapper shows the failure message
+              return allRestored ? true : false;
             });
           },
         });
