@@ -329,8 +329,8 @@ const locale = {
     deleteConfirmTitle: "Elimina attività",
     deleteConfirmBulkTitle: "Elimina attività",
     deleteConfirmMessage: 'Eliminare definitivamente "<b>{{title}}</b>" e tutti i suoi blocchi figli?',
-    deleteConfirmSubtaskWarning: "Questo eliminerà anche {{count}} sottoattività.",
-    deleteConfirmOrphanWarning: "{{count}} sottoattività collegata/e altrove perderanno il collegamento al genitore.",
+    deleteConfirmSubtaskWarning: "Verranno eliminate anche le sottoattività associate ({{count}}).",
+    deleteConfirmOrphanWarning: "Le sottoattività collegate altrove ({{count}}) perderanno il collegamento all'attività principale.",
     deleteConfirmBulkMessage: "Eliminare definitivamente {{count}} attività e tutti i loro blocchi figli?",
     taskDeleted: "Attività eliminata",
     taskRestored: "Attività ripristinata",
@@ -570,7 +570,7 @@ const locale = {
       undoSuccess: "Modifiche annullate",
       undoFailed: "Annullamento fallito",
       deleteSelected: "Elimina",
-      deletedCount: (n) => `Attività eliminate: ${n}`
+      deletedCount: (n) => n === 1 ? "Eliminata 1 attività" : `Eliminate ${n} attività`
     }
   },
   analytics: {

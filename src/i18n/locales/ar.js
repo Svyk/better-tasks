@@ -330,7 +330,7 @@ const locale = {
     deleteConfirmBulkTitle: "حذف المهام",
     deleteConfirmMessage: 'حذف "<b>{{title}}</b>" وكل الكتل التابعة لها نهائياً؟',
     deleteConfirmSubtaskWarning: "سيؤدي ذلك أيضاً إلى حذف {{count}} مهمة فرعية.",
-    deleteConfirmOrphanWarning: "ستفقد {{count}} مهمة فرعية مرتبطة في مكان آخر رابطها بالأصل.",
+    deleteConfirmOrphanWarning: "ستفقد المهام الفرعية المرتبطة في أماكن أخرى ({{count}}) ارتباطها بالمهمة الأصلية.",
     deleteConfirmBulkMessage: "حذف {{count}} مهمة وكل الكتل التابعة لها نهائياً؟",
     taskDeleted: "تم حذف المهمة",
     taskRestored: "تمت استعادة المهمة",
@@ -570,7 +570,7 @@ const locale = {
       undoSuccess: "تم التراجع عن التغييرات",
       undoFailed: "فشل التراجع",
       deleteSelected: "حذف",
-      deletedCount: (n) => `المهام المحذوفة: ${n}`
+      deletedCount: (n) => `تم حذف ${n} من المهام`
     }
   },
   analytics: {
@@ -719,7 +719,7 @@ const locale = {
     editWaiting: "تعديل قيد الانتظار",
     removeWaiting: "إزالة قيد الانتظار",
     priorityCycle: "الأولوية (انقر للتدوير)",
-    energyCycle: "الطاقة (انقر للتدوير)",
+    energyCycle: "مستوى الطاقة (انقر للتبديل)",
     cycleGtd: "تدوير GTD",
     setDepends: "تعيين تبعية",
     editDepends: "تعديل التبعيات",

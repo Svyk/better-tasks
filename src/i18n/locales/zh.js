@@ -719,7 +719,7 @@ const locale = {
     editWaiting: "编辑等待对象",
     removeWaiting: "移除等待对象",
     priorityCycle: "优先级（点击循环）",
-    energyCycle: "精力（点击循环）",
+    energyCycle: "精力（点击切换）",
     cycleGtd: "切换 GTD",
     setDepends: "设置依赖",
     editDepends: "编辑依赖",
