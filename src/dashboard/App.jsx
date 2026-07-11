@@ -33,6 +33,7 @@ const DEFAULT_KEYBINDINGS = {
   moveUp: "k",
   open: "Enter",
   complete: "c",
+  delete: "d",
   snooze: "s",
   focusSearch: "/",
   toggleSelect: "x",
@@ -95,6 +96,7 @@ function KeyboardHelpOverlay({ keybindings, onClose }) {
     [keybindings.moveUp, "Move up"],
     [keybindings.open, "Open task"],
     [keybindings.complete, "Complete / undo"],
+    [keybindings.delete, "Delete task (confirm)"],
     [keybindings.snooze, "Snooze +1d"],
     [keybindings.snooze7, "Snooze +7d"],
     [keybindings.expandSubtasks, "Expand / collapse subtasks"],
@@ -927,6 +929,16 @@ function TaskActionsMenu({ task, controller, onOpenChange, strings, forceOpen, o
       handler: () => {
         setOpenState(false);
         controller._onActivityViewRequest?.(task);
+      },
+    });
+    list.push({ key: "delete-separator", label: "", separator: true });
+    list.push({
+      key: "delete-task",
+      label: tm.deleteTask || "Delete task",
+      danger: true,
+      handler: async () => {
+        setOpenState(false);
+        await controller.deleteTask?.(task.uid);
       },
     });
 
@@ -2902,6 +2914,11 @@ function BulkActionBar({ selectedUids, tasks, controller, strings, onClearSelect
     onClearSelection();
   };
 
+  const handleBulkDelete = async () => {
+    const r = await controller.bulkDeleteTask?.(Array.from(selectedUids));
+    if (r?.didDelete) onClearSelection();
+  };
+
   const toggleSubmenu = (submenu) => {
     setActiveSubmenu((prev) => (prev === submenu ? null : submenu));
   };
@@ -3073,6 +3090,13 @@ function BulkActionBar({ selectedUids, tasks, controller, strings, onClearSelect
           </div>
         )}
       </div>
+      <button
+        type="button"
+        className="bp3-button bp3-small bp3-intent-danger"
+        onClick={handleBulkDelete}
+      >
+        {bulk.deleteSelected || "Delete"}
+      </button>
       <button
         type="button"
         className="bp3-button bp3-small bp3-minimal"
@@ -3422,10 +3446,12 @@ export default function DashboardApp({ controller, onRequestClose, onHeaderReady
     [tt]
   );
   const taskMenuStrings = useMemo(() => tPath(["taskMenu"], lang) || {}, [lang]);
+  const bulkStrings = useMemo(() => tPath(["dashboard", "bulk"], lang) || {}, [lang]);
   const focusModeStrings = useMemo(() => tPath(["focusMode"], lang) || {}, [lang]);
   const ui = useMemo(
     () => ({
       taskMenu: taskMenuStrings,
+      bulk: bulkStrings,
       filterDefs,
       metaLabels,
       headerTitle: tt(["dashboard", "title"], "Better Tasks"),
@@ -3535,7 +3561,7 @@ export default function DashboardApp({ controller, onRequestClose, onHeaderReady
       },
       focusMode: focusModeStrings,
     }),
-    [tt, groupingOptions, groupLabels, metaLabels, taskMenuStrings, focusModeStrings]
+    [tt, groupingOptions, groupLabels, metaLabels, taskMenuStrings, bulkStrings, focusModeStrings]
   );
   const [filtersOpen, setFiltersOpen] = useState(false);
   const stalledDays = controller?.getStalledDays?.() || 14;
@@ -3554,6 +3580,18 @@ export default function DashboardApp({ controller, onRequestClose, onHeaderReady
     for (const task of filteredTasks) map.set(task.uid, task);
     return map;
   }, [filteredTasks]);
+  useEffect(() => {
+    const taskUids = new Set((snapshot.tasks || []).map((task) => task.uid));
+    if (activityViewTask?.uid && !taskUids.has(activityViewTask.uid)) {
+      setActivityViewTask(null);
+      setActivityEntries(null);
+      setActivityContainerUid(null);
+      setActivityLoading(false);
+    }
+    if (seriesViewTask?.uid && !taskUids.has(seriesViewTask.uid)) {
+      setSeriesViewTask(null);
+    }
+  }, [snapshot.tasks, activityViewTask?.uid, seriesViewTask?.uid]);
   const groups = useMemo(
     () =>
       groupTasks(filteredTasks, grouping, {
@@ -3912,6 +3950,19 @@ export default function DashboardApp({ controller, onRequestClose, onHeaderReady
           cancelSelection();
         } else {
           controller.snoozeTask(row.task.uid, 7);
+        }
+        return;
+      }
+
+      // d — delete task (bulk if selection active)
+      if (matchesBinding(key, keybindings.delete)) {
+        event.preventDefault();
+        if (selectionActiveRef.current && selectedUidsRef.current.size > 0) {
+          controller.bulkDeleteTask?.(Array.from(selectedUidsRef.current)).then((r) => {
+            if (r?.didDelete) cancelSelection();
+          });
+        } else {
+          controller.deleteTask?.(row.task.uid);
         }
         return;
       }

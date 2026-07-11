@@ -83,6 +83,13 @@ import {
   computeBlockedState as computeBlockedStateCore,
 } from "./core/dependencies";
 import {
+  normalizePulledSubtree,
+  flattenSubtreeToCreateSteps,
+  collectTreeUids,
+  countTaskBlocks,
+  dropNestedSelections,
+} from "./core/subtree.js";
+import {
   SUGGESTION_DEFAULTS,
   computeSuggestions as computeSuggestionsCore,
   filterDismissed as filterDismissedSuggestions,
@@ -5210,7 +5217,7 @@ export default {
       const registry = (window.RoamExtensionTools = window.RoamExtensionTools || {});
       registry[EXTENSION_TOOLS_ID] = {
         name: "Better Tasks",
-        version: "1.2",
+        version: "1.3",
         tools: [
           {
             name: "bt_get_projects",
@@ -5353,6 +5360,34 @@ export default {
               required: ["uids", "days"],
             },
             execute: async (args = {}) => runToolSafely("bt_bulk_snooze", args, () => executeToolBulkSnooze(args)),
+          },
+          {
+            name: "bt_delete",
+            readOnly: false,
+            description: "Permanently delete a Better Tasks task block AND its entire subtree (child blocks, structural subtasks, activity history). References from other tasks' depends/parent attributes are cleaned first; explicit subtasks elsewhere lose their parent link. The user is shown a brief Undo toast, but treat this as irreversible. Requires confirm: true.",
+            parameters: {
+              type: "object",
+              properties: {
+                uid: { type: "string" },
+                confirm: { type: "boolean", description: "Must be exactly true. Safety latch: the interactive confirmation dialog is not visible to agents." },
+              },
+              required: ["uid", "confirm"],
+            },
+            execute: async (args = {}) => runToolSafely("bt_delete", args, () => executeToolDelete(args)),
+          },
+          {
+            name: "bt_bulk_delete",
+            readOnly: false,
+            description: "Permanently delete multiple Better Tasks task blocks and their entire subtrees. References from other tasks' depends/parent attributes are cleaned first. Requires confirm: true.",
+            parameters: {
+              type: "object",
+              properties: {
+                uids: { type: "array", items: { type: "string" }, description: "Task UIDs to delete. Max 50." },
+                confirm: { type: "boolean", description: "Must be exactly true. Safety latch: the interactive confirmation dialog is not visible to agents." },
+              },
+              required: ["uids", "confirm"],
+            },
+            execute: async (args = {}) => runToolSafely("bt_bulk_delete", args, () => executeToolBulkDelete(args)),
           },
           {
             name: "bt_get_analytics",
@@ -6681,7 +6716,7 @@ export default {
           }
         }
         if (anyPatchApplied) scheduleSurfaceSync(set.attributeSurface);
-        await refresh({ reason: "force" });
+        await activeDashboardController?.refresh?.({ reason: "force" });
         requestTodayWidgetRenderOnDnp(120, true);
         const succeeded = results.filter((r) => r.success).length;
         return {
@@ -6731,7 +6766,7 @@ export default {
           }
         }
         scheduleSurfaceSync(set.attributeSurface);
-        await refresh({ reason: "force" });
+        await activeDashboardController?.refresh?.({ reason: "force" });
         requestTodayWidgetRenderOnDnp(120, true);
         const succeeded = results.filter((r) => r.success).length;
         return {
@@ -6745,6 +6780,42 @@ export default {
           bulkOperationCooldownTimer = null;
         }, BULK_OPERATION_COOLDOWN_MS);
       }
+    }
+
+    async function executeToolDelete(args = {}) {
+      if (args.confirm !== true) return { error: "confirm: true is required to delete" };
+      const uid = typeof args.uid === "string" ? args.uid.trim() : "";
+      if (!uid) return { error: "uid is required" };
+      invalidateBlockCache(uid);
+      const block = await getBlock(uid);
+      if (!block) return { error: "Task not found" };
+      if (!isTaskBlock(block)) return { error: "Target block is not a TODO/DONE task block" };
+      const set = S();
+      const meta = await readRecurringMeta(block, set);
+      if (!isBetterTasksTask(meta)) return { error: "refusing to delete a non-Better-Tasks block" };
+      const snapshot = await captureTaskDeleteSnapshot(uid);
+      if (!snapshot) return { error: "Could not capture task deletion snapshot" };
+      const ok = await deleteTaskFlow(uid, { source: "api", skipConfirm: true, snapshot });
+      if (!ok) return { error: "Delete failed" };
+      const dependentsCleaned = Array.from(new Set((snapshot.externalRefs?.dependents || []).map((entry) => entry.taskUid).filter(Boolean)));
+      const subtasksUnlinked = Array.from(new Set((snapshot.externalRefs?.explicitSubtasks || []).map((entry) => entry.taskUid).filter(Boolean)));
+      return {
+        success: true,
+        uid,
+        deleted_block_count: snapshot.treeUids.length,
+        structural_subtasks_deleted: countTaskBlocks(snapshot.tree),
+        dependents_cleaned: dependentsCleaned,
+        subtasks_unlinked: subtasksUnlinked,
+      };
+    }
+
+    async function executeToolBulkDelete(args = {}) {
+      if (args.confirm !== true) return { error: "confirm: true is required to delete" };
+      const uids = args.uids;
+      if (!Array.isArray(uids) || !uids.length) return { error: "uids array is required and must be non-empty" };
+      if (uids.length > 50) return { error: "Maximum 50 tasks per bulk operation" };
+      const result = await bulkDeleteTasksFlow(uids, { source: "api", skipConfirm: true });
+      return { results: result.results, summary: result.summary };
     }
 
     function pickInlineAttr(inlineMap, aliases, options = {}) {
@@ -7911,6 +7982,69 @@ export default {
         },
         onClosed: () => {
           undoRegistry.delete(data.blockUid);
+        },
+      });
+    }
+
+    function showBulkUndoToast({ message, undo, successMessage = null, failedMessage = null }) {
+      const lang = getLanguageSetting();
+      const bulkStrings = t(["dashboard", "bulk"], lang) || {};
+      const undoSuccess = successMessage || bulkStrings.undoSuccess || "Changes undone";
+      const undoFailed = failedMessage || bulkStrings.undoFailed || "Undo failed";
+      iziToast.show({
+        theme: "light",
+        color: "black",
+        class: "betterTasks bt-toast-undo",
+        position: "center",
+        message: message,
+        timeout: 6000,
+        close: true,
+        closeOnEscape: true,
+        closeOnClick: false,
+        buttons: [
+          [
+            `<button>${escapeHtml(bulkStrings.undo || "Undo")}</button>`,
+            async (instance, toastEl) => {
+              instance.hide({ transitionOut: "fadeOut" }, toastEl, "button");
+              try {
+                await undo();
+                iziToast.show({
+                  theme: "light",
+                  color: "black",
+                  class: "betterTasks bt-toast-info",
+                  message: undoSuccess,
+                  position: "center",
+                  timeout: 2000,
+                  close: false,
+                  closeOnEscape: true,
+                  closeOnClick: true,
+                  onOpening: (_instance, toastEl) => {
+                    applyToastA11y(toastEl);
+                  },
+                });
+              } catch (err) {
+                console.error("[BetterTasks] bulk undo failed", err);
+                iziToast.show({
+                  theme: "light",
+                  color: "black",
+                  class: "betterTasks bt-toast-info",
+                  message: undoFailed,
+                  position: "center",
+                  timeout: 3000,
+                  close: false,
+                  closeOnEscape: true,
+                  closeOnClick: true,
+                  onOpening: (_instance, toastEl) => {
+                    applyToastA11y(toastEl);
+                  },
+                });
+              }
+            },
+            true,
+          ],
+        ],
+        onOpening: (_instance, toastEl) => {
+          applyToastA11y(toastEl);
         },
       });
     }
@@ -9750,7 +9884,9 @@ export default {
 
     // ── Deconvert (Clean Exit) ─────────────────────────────────────
 
-    function confirmToast(title, message) {
+    function confirmToast(title, message, options = {}) {
+      const confirmLabel = options?.confirmLabel || "Yes";
+      const cancelLabel = options?.cancelLabel || "Cancel";
       return new Promise((resolve) => {
         let settled = false;
         const finish = (v) => { if (!settled) { settled = true; resolve(v); } };
@@ -9772,12 +9908,547 @@ export default {
           position: "center",
           onOpening: (_instance, toastEl) => { applyToastA11y(toastEl); },
           buttons: [
-            [`<button>Yes</button>`, (instance, toast) => { instance.hide({ transitionOut: "fadeOut" }, toast, "button"); finish(true); }, true],
-            [`<button>Cancel</button>`, (instance, toast) => { instance.hide({ transitionOut: "fadeOut" }, toast, "button"); finish(false); }],
+            [`<button>${escapeHtml(confirmLabel)}</button>`, (instance, toast) => { instance.hide({ transitionOut: "fadeOut" }, toast, "button"); finish(true); }, true],
+            [`<button>${escapeHtml(cancelLabel)}</button>`, (instance, toast) => { instance.hide({ transitionOut: "fadeOut" }, toast, "button"); finish(false); }],
           ],
           onClosed: () => finish(false),
         });
       });
+    }
+
+    async function getDirectParentUid(uid) {
+      if (!uid) return null;
+      try {
+        const safeUid = escapeDatalogString(uid);
+        const rows = await window.roamAlphaAPI.q(`
+          [:find ?pu .
+           :where
+             [?c :block/uid "${safeUid}"]
+             [?p :block/children ?c]
+             [?p :block/uid ?pu]]`);
+        return rows || null;
+      } catch (err) {
+        console.warn("[BetterTasks] getDirectParentUid failed", err);
+        return null;
+      }
+    }
+
+    async function pullSubtreeSnapshot(uid) {
+      if (!uid) return null;
+      try {
+        const raw = await window.roamAlphaAPI.pull(
+          "[:block/uid :block/string :block/order :block/props :block/open :block/heading :block/text-align {:block/children ...}]",
+          [":block/uid", uid]
+        );
+        const normalized = normalizePulledSubtree(raw);
+        if (normalized) return normalized;
+      } catch (err) {
+        console.warn("[BetterTasks] recursive subtree pull failed", err);
+      }
+      const walk = async (blockUid) => {
+        const block = await getBlock(blockUid);
+        if (!block) return null;
+        const node = {
+          uid: block.uid,
+          string: block.string || "",
+          order: Number.isFinite(block.order) ? block.order : 0,
+          props: block.props,
+          open: block.open,
+          heading: block.heading,
+          textAlign: block.textAlign || block["text-align"],
+          children: [],
+        };
+        const children = Array.isArray(block.children) ? block.children.slice() : [];
+        children.sort((a, b) => (Number.isFinite(a?.order) ? a.order : 0) - (Number.isFinite(b?.order) ? b.order : 0));
+        for (const child of children) {
+          const childNode = await walk(child?.uid);
+          if (childNode) node.children.push(childNode);
+        }
+        return node;
+      };
+      try {
+        return await walk(uid);
+      } catch (err) {
+        console.warn("[BetterTasks] fallback subtree walk failed", err);
+        return null;
+      }
+    }
+
+    async function findExplicitSubtaskTasks(uid) {
+      const attrNames = resolveAttributeNames();
+      const attrLabel = attrNames.parentAttr;
+      if (!attrLabel || !uid) return [];
+      const safeLabel = escapeDatalogString(attrLabel);
+      const safeUid = escapeDatalogString(uid);
+      try {
+        const query = `
+          [:find (pull ?parent [:block/uid :block/string
+                    {:block/children [:block/uid :block/string]}
+                    {:block/page [:block/uid :node/title]}])
+           :where
+             [?child :block/string ?str]
+             [(clojure.string/includes? ?str "${safeLabel}")]
+             [(clojure.string/includes? ?str "((${safeUid}))")]
+             [?parent :block/children ?child]]`;
+        const rows = await window.roamAlphaAPI.q(query);
+        return (rows || []).map((r) => r?.[0]).filter(Boolean);
+      } catch (err) {
+        console.warn("[BetterTasks] findExplicitSubtaskTasks query failed", err);
+        return [];
+      }
+    }
+
+    async function readTaskDependsUids(taskUid, attrNames = resolveAttributeNames()) {
+      const block = await getBlock(taskUid);
+      if (!block) return [];
+      const childAttrMap = parseAttrsFromChildBlocks(block.children || []);
+      const dependsEntry = pickChildAttr(childAttrMap, attrNames.dependsAliases || [], { allowFallback: true });
+      return dependsEntry?.value ? parseDependsValue(dependsEntry.value) : [];
+    }
+
+    async function collectExternalRefs(treeUids) {
+      const uidSet = new Set(Array.isArray(treeUids) ? treeUids : []);
+      const dependents = [];
+      const explicitSubtasks = [];
+      const depSeen = new Set();
+      const subSeen = new Set();
+      const attrNames = resolveAttributeNames();
+      for (const refUid of uidSet) {
+        const depTasks = await findDependentTasks(refUid);
+        for (const dep of depTasks) {
+          const taskUid = dep?.uid;
+          if (!taskUid || uidSet.has(taskUid)) continue;
+          const key = `${taskUid}|${refUid}`;
+          if (depSeen.has(key)) continue;
+          depSeen.add(key);
+          const prevDepends = await readTaskDependsUids(taskUid, attrNames);
+          dependents.push({ taskUid, refUid, prevDepends });
+        }
+        const subTasks = await findExplicitSubtaskTasks(refUid);
+        for (const sub of subTasks) {
+          const taskUid = sub?.uid;
+          if (!taskUid || uidSet.has(taskUid)) continue;
+          const key = `${taskUid}|${refUid}`;
+          if (subSeen.has(key)) continue;
+          subSeen.add(key);
+          explicitSubtasks.push({ taskUid, refUid });
+        }
+      }
+      return { dependents, explicitSubtasks };
+    }
+
+    async function captureTaskDeleteSnapshot(uid) {
+      if (!uid) return null;
+      const tree = await pullSubtreeSnapshot(uid);
+      const parentUid = await getDirectParentUid(uid);
+      if (!tree || !parentUid) return null;
+      const treeUids = collectTreeUids(tree);
+      const externalRefs = await collectExternalRefs(treeUids);
+      return {
+        version: 1,
+        rootUid: uid,
+        parentUid,
+        order: tree.order,
+        tree,
+        treeUids,
+        externalRefs,
+        capturedAt: Date.now(),
+      };
+    }
+
+    async function removeExternalRefs(snapshot) {
+      if (!snapshot) return;
+      const treeSet = new Set(snapshot.treeUids || []);
+      const attrNames = resolveAttributeNames();
+      const dependentsByTask = new Map();
+      for (const entry of snapshot.externalRefs?.dependents || []) {
+        if (!entry?.taskUid || treeSet.has(entry.taskUid)) continue;
+        if (!dependentsByTask.has(entry.taskUid)) dependentsByTask.set(entry.taskUid, entry.prevDepends || []);
+      }
+      for (const [taskUid, prevDepends] of dependentsByTask) {
+        const remaining = (Array.isArray(prevDepends) ? prevDepends : []).filter((u) => !treeSet.has(u));
+        invalidateBlockCache(taskUid);
+        if (remaining.length === 0) {
+          await removeChildAttrsForType(taskUid, "depends", attrNames);
+        } else {
+          await ensureChildAttrForType(taskUid, "depends", formatDependsValue(remaining), attrNames);
+        }
+        invalidateBlockCache(taskUid);
+        invalidateBlockedState(taskUid);
+      }
+      const explicitTaskUids = new Set();
+      for (const entry of snapshot.externalRefs?.explicitSubtasks || []) {
+        if (!entry?.taskUid || treeSet.has(entry.taskUid)) continue;
+        explicitTaskUids.add(entry.taskUid);
+      }
+      for (const taskUid of explicitTaskUids) {
+        invalidateBlockCache(taskUid);
+        await removeChildAttrsForType(taskUid, "parent", attrNames);
+        invalidateBlockCache(taskUid);
+        invalidateBlockedState(taskUid);
+      }
+    }
+
+    async function restoreExternalRefs(snapshot) {
+      if (!snapshot) return;
+      const treeSet = new Set(snapshot.treeUids || []);
+      const attrNames = resolveAttributeNames();
+      const dependentsByTask = new Map();
+      for (const entry of snapshot.externalRefs?.dependents || []) {
+        if (!entry?.taskUid || treeSet.has(entry.taskUid)) continue;
+        if (!dependentsByTask.has(entry.taskUid)) dependentsByTask.set(entry.taskUid, entry.prevDepends || []);
+      }
+      for (const [taskUid, prevDepends] of dependentsByTask) {
+        const deps = Array.isArray(prevDepends) ? prevDepends : [];
+        invalidateBlockCache(taskUid);
+        if (deps.length) {
+          await ensureChildAttrForType(taskUid, "depends", formatDependsValue(deps), attrNames);
+        } else {
+          await removeChildAttrsForType(taskUid, "depends", attrNames);
+        }
+        invalidateBlockCache(taskUid);
+        invalidateBlockedState(taskUid);
+      }
+      const explicitByTask = new Map();
+      for (const entry of snapshot.externalRefs?.explicitSubtasks || []) {
+        if (!entry?.taskUid || !entry?.refUid || treeSet.has(entry.taskUid)) continue;
+        explicitByTask.set(entry.taskUid, entry.refUid);
+      }
+      for (const [taskUid, refUid] of explicitByTask) {
+        invalidateBlockCache(taskUid);
+        await ensureChildAttrForType(taskUid, "parent", `((${refUid}))`, attrNames);
+        invalidateBlockCache(taskUid);
+        invalidateBlockedState(taskUid);
+      }
+    }
+
+    function purgeTaskCaches(treeUids) {
+      for (const uid of Array.isArray(treeUids) ? treeUids : []) {
+        try {
+          historyContainerCache.delete(uid);
+          window.__btPillSignatureCache?.delete?.(uid);
+          window.__btInlineMetaCache?.delete?.(uid);
+          subtaskProgressCache?.delete?.(uid);
+          repeatOverrides?.delete?.(uid);
+          invalidateBlockedState(uid);
+          invalidateBlockCache(uid);
+        } catch (_) { /* ignore */ }
+      }
+    }
+
+    async function deleteTaskCore(snapshot) {
+      if (!snapshot?.rootUid) throw new Error("Missing task delete snapshot");
+      await removeExternalRefs(snapshot);
+      try {
+        await deleteBlock(snapshot.rootUid);
+      } catch (err) {
+        await restoreExternalRefs(snapshot);
+        throw err;
+      }
+      purgeTaskCaches(snapshot.treeUids);
+      for (const uid of snapshot.treeUids || []) {
+        activeDashboardController?.removeTask?.(uid);
+      }
+      const treeSet = new Set(snapshot.treeUids || []);
+      const survivingExplicit = new Set((snapshot.externalRefs?.explicitSubtasks || [])
+        .map((entry) => entry?.taskUid)
+        .filter((taskUid) => taskUid && !treeSet.has(taskUid)));
+      for (const taskUid of survivingExplicit) {
+        activeDashboardController?.notifyBlockChange?.(taskUid);
+      }
+      try {
+        for (const uid of snapshot.treeUids || []) {
+          const main = document.querySelector(`.rm-block-main[data-uid="${uid}"]`);
+          if (main) main.querySelectorAll(".rt-pill-wrap")?.forEach((el) => el.remove());
+        }
+      } catch (_) { /* ignore */ }
+      try {
+        void syncPillsForSurface(lastAttrSurface);
+      } catch (_) { /* ignore */ }
+      requestTodayWidgetRenderOnDnp(120, true);
+    }
+
+    function walkTaskDeleteTree(tree, visit) {
+      if (!tree || typeof visit !== "function") return;
+      visit(tree);
+      for (const child of tree.children || []) walkTaskDeleteTree(child, visit);
+    }
+
+    async function restoreTaskFromSnapshot(snapshot, options = {}) {
+      if (!snapshot?.tree || !snapshot?.parentUid) return false;
+      invalidateBlockCache(snapshot.parentUid);
+      let parentExists = false;
+      try {
+        parentExists = !!(await getBlock(snapshot.parentUid));
+      } catch (_) { /* ignore */ }
+      if (!parentExists) {
+        try {
+          const parentPull = await window.roamAlphaAPI.pull("[:block/uid]", [":block/uid", snapshot.parentUid]);
+          parentExists = !!parentPull?.[":block/uid"];
+        } catch (_) { /* ignore */ }
+      }
+      if (!parentExists) {
+        toast(t(["toasts", "restoreFailed"], getLanguageSetting()) || "Could not restore task.");
+        return false;
+      }
+      const steps = flattenSubtreeToCreateSteps(snapshot.tree, snapshot.parentUid);
+      for (const step of steps) {
+        await createBlock(step.parentUid, step.order, step.string || "", step.uid);
+      }
+      await delay(150);
+      invalidateBlockCache(snapshot.parentUid);
+      for (const uid of snapshot.treeUids || []) invalidateBlockCache(uid);
+      const cosmeticUpdates = [];
+      walkTaskDeleteTree(snapshot.tree, (node) => {
+        if (node?.props && typeof node.props === "object" && Object.keys(node.props).length) {
+          cosmeticUpdates.push(mergeRawBlockProps(node.uid, node.props));
+        }
+        const block = { uid: node.uid };
+        let hasCosmetic = false;
+        if (node.open !== undefined) { block.open = node.open; hasCosmetic = true; }
+        if (node.heading !== undefined) { block.heading = node.heading; hasCosmetic = true; }
+        if (node.textAlign !== undefined) { block["text-align"] = node.textAlign; hasCosmetic = true; }
+        if (hasCosmetic) {
+          cosmeticUpdates.push(
+            window.roamAlphaAPI.updateBlock({ block }).catch((err) => {
+              console.warn("[BetterTasks] restore task cosmetic update failed", err);
+            })
+          );
+        }
+      });
+      await Promise.all(cosmeticUpdates);
+      if (!options?.deferExternalRefs) {
+        await restoreExternalRefs(snapshot);
+      }
+      activeDashboardController?.notifyBlockChange?.(snapshot.rootUid);
+      requestTodayWidgetRenderOnDnp(120, true);
+      void syncPillsForSurface(lastAttrSurface);
+      return true;
+    }
+
+    function applyCountTemplate(value, count, fallback) {
+      if (typeof value === "function") return value(count);
+      if (typeof value === "string") return value.replace(/\{\{count\}\}/g, String(count));
+      return fallback;
+    }
+
+    function buildTaskDeleteConfirmMessage(snapshot, title) {
+      const lang = getLanguageSetting();
+      const base = (t(["toasts", "deleteConfirmMessage"], lang) || 'Permanently delete "<b>{{title}}</b>" and all of its child blocks?')
+        .replace(/\{\{title\}\}/g, title);
+      const parts = [base];
+      const subtaskCount = countTaskBlocks(snapshot.tree);
+      if (subtaskCount > 0) {
+        parts.push((t(["toasts", "deleteConfirmSubtaskWarning"], lang) || "This will also delete {{count}} subtask(s).")
+          .replace(/\{\{count\}\}/g, String(subtaskCount)));
+      }
+      const treeSet = new Set(snapshot.treeUids || []);
+      const orphanCount = (snapshot.externalRefs?.explicitSubtasks || []).filter((entry) => entry?.taskUid && !treeSet.has(entry.taskUid)).length;
+      if (orphanCount > 0) {
+        parts.push((t(["toasts", "deleteConfirmOrphanWarning"], lang) || "{{count}} linked subtask(s) elsewhere will lose their parent link.")
+          .replace(/\{\{count\}\}/g, String(orphanCount)));
+      }
+      return parts.join("<br><br>");
+    }
+
+    async function deleteTaskFlow(uid, { source = "dashboard", skipConfirm = false, snapshot = null } = {}) {
+      if (!uid) return false;
+      invalidateBlockCache(uid);
+      const block = await getBlock(uid);
+      if (!block) return false;
+      if (!isTaskBlock(block)) {
+        toast(t(["toasts", "deleteFailed"], getLanguageSetting()) || "Could not delete task.");
+        return false;
+      }
+      try {
+        const set = S();
+        const meta = await readRecurringMeta(block, set);
+        if (!isBetterTasksTask(meta)) {
+          toast(t(["toasts", "deleteFailed"], getLanguageSetting()) || "Could not delete task.");
+          return false;
+        }
+      } catch (err) {
+        console.warn("[BetterTasks] deleteTaskFlow metadata check failed", { source, uid, err });
+        toast(t(["toasts", "deleteFailed"], getLanguageSetting()) || "Could not delete task.");
+        return false;
+      }
+      const title = escapeHtml(formatDashboardTitle(block.string || "").slice(0, 80) || uid);
+      const captured = snapshot || (await captureTaskDeleteSnapshot(uid));
+      if (!captured) {
+        toast(t(["toasts", "deleteFailed"], getLanguageSetting()) || "Could not delete task.");
+        return false;
+      }
+      if (!skipConfirm) {
+        const lang = getLanguageSetting();
+        const confirmed = await confirmToast(
+          t(["toasts", "deleteConfirmTitle"], lang) || "Delete Task",
+          buildTaskDeleteConfirmMessage(captured, title),
+          {
+            confirmLabel: t(["buttons", "delete"], lang) || "Delete",
+            cancelLabel: t(["buttons", "cancel"], lang) || "Cancel",
+          }
+        );
+        if (!confirmed) return false;
+      }
+      try {
+        await deleteTaskCore(captured);
+      } catch (err) {
+        console.warn("[BetterTasks] deleteTaskFlow failed", { source, uid, err });
+        toast(t(["toasts", "deleteFailed"], getLanguageSetting()) || "Could not delete task.");
+        return false;
+      }
+      showBulkUndoToast({
+        message: t(["toasts", "taskDeleted"], getLanguageSetting()) || "Task deleted",
+        successMessage: t(["toasts", "taskRestored"], getLanguageSetting()) || "Task restored",
+        failedMessage: t(["toasts", "restoreFailed"], getLanguageSetting()) || "Could not restore task.",
+        undo: () => restoreTaskFromSnapshot(captured),
+      });
+      return true;
+    }
+
+    function withBulkOperationSuppression(fn) {
+      if (bulkOperationCooldownTimer) {
+        clearTimeout(bulkOperationCooldownTimer);
+        bulkOperationCooldownTimer = null;
+      }
+      bulkOperationInProgress = true;
+      return (async () => {
+        try {
+          return await fn();
+        } finally {
+          if (bulkOperationCooldownTimer) clearTimeout(bulkOperationCooldownTimer);
+          bulkOperationCooldownTimer = setTimeout(() => {
+            bulkOperationInProgress = false;
+            bulkOperationCooldownTimer = null;
+          }, BULK_OPERATION_COOLDOWN_MS);
+        }
+      })();
+    }
+
+    async function bulkDeleteTasksFlow(uids, { source = "dashboard", skipConfirm = false } = {}) {
+      const normalized = [];
+      const seen = new Set();
+      for (const rawUid of Array.isArray(uids) ? uids : []) {
+        const uid = typeof rawUid === "string" ? rawUid.trim() : "";
+        if (!uid || seen.has(uid)) continue;
+        seen.add(uid);
+        normalized.push(uid);
+      }
+      if (!normalized.length) return { didDelete: false, results: [], summary: { total: 0, succeeded: 0, failed: 0 } };
+      const results = [];
+      const snapshots = new Map();
+      for (const uid of normalized) {
+        const block = await getBlock(uid);
+        if (!block) {
+          results.push({ uid, success: false, error: "Task not found" });
+          continue;
+        }
+        if (!isTaskBlock(block)) {
+          results.push({ uid, success: false, error: "Target block is not a TODO/DONE task block" });
+          continue;
+        }
+        try {
+          const set = S();
+          const meta = await readRecurringMeta(block, set);
+          if (!isBetterTasksTask(meta)) {
+            results.push({ uid, success: false, error: "refusing to delete a non-Better-Tasks block" });
+            continue;
+          }
+        } catch (err) {
+          results.push({ uid, success: false, error: err?.message || "Metadata read failed" });
+          continue;
+        }
+        const snapshot = await captureTaskDeleteSnapshot(uid);
+        if (!snapshot) {
+          results.push({ uid, success: false, error: "Task not found" });
+          continue;
+        }
+        snapshots.set(uid, snapshot);
+      }
+      const validUids = normalized.filter((uid) => snapshots.has(uid));
+      const treeMap = new Map(Array.from(snapshots.entries()).map(([uid, snap]) => [uid, snap.treeUids]));
+      const keep = dropNestedSelections(validUids, treeMap);
+      const keepSet = new Set(keep);
+      for (const uid of validUids) {
+        if (!keepSet.has(uid)) results.push({ uid, success: false, skipped: true, error: "Skipped nested selection" });
+      }
+      if (!keep.length) {
+        const summary = { total: results.length, succeeded: 0, failed: results.length };
+        return { didDelete: false, results, summary };
+      }
+      if (!skipConfirm) {
+        const lang = getLanguageSetting();
+        const confirmParts = [
+          (t(["toasts", "deleteConfirmBulkMessage"], lang) || "Permanently delete {{count}} tasks and all of their child blocks?")
+            .replace(/\{\{count\}\}/g, String(keep.length)),
+        ];
+        const subtaskCount = keep.reduce((sum, uid) => sum + countTaskBlocks(snapshots.get(uid)?.tree), 0);
+        if (subtaskCount > 0) {
+          confirmParts.push((t(["toasts", "deleteConfirmSubtaskWarning"], lang) || "This will also delete {{count}} subtask(s).")
+            .replace(/\{\{count\}\}/g, String(subtaskCount)));
+        }
+        const orphanCount = keep.reduce((sum, uid) => {
+          const snap = snapshots.get(uid);
+          const treeSet = new Set(snap?.treeUids || []);
+          return sum + (snap?.externalRefs?.explicitSubtasks || []).filter((entry) => entry?.taskUid && !treeSet.has(entry.taskUid)).length;
+        }, 0);
+        if (orphanCount > 0) {
+          confirmParts.push((t(["toasts", "deleteConfirmOrphanWarning"], lang) || "{{count}} linked subtask(s) elsewhere will lose their parent link.")
+            .replace(/\{\{count\}\}/g, String(orphanCount)));
+        }
+        const confirmed = await confirmToast(
+          t(["toasts", "deleteConfirmBulkTitle"], lang) || "Delete Tasks",
+          confirmParts.join("<br><br>"),
+          {
+            confirmLabel: t(["buttons", "delete"], lang) || "Delete",
+            cancelLabel: t(["buttons", "cancel"], lang) || "Cancel",
+          }
+        );
+        if (!confirmed) return { didDelete: false, results: [], summary: null };
+      }
+      const deleted = [];
+      await withBulkOperationSuppression(async () => {
+        for (const uid of keep) {
+          const snapshot = snapshots.get(uid);
+          try {
+            await deleteTaskCore(snapshot);
+            results.push({ uid, success: true });
+            deleted.push(snapshot);
+          } catch (err) {
+            console.warn("[BetterTasks] bulk delete item failed", { source, uid, err });
+            results.push({ uid, success: false, error: err?.message || "Delete failed" });
+          }
+        }
+      });
+      await activeDashboardController?.refresh?.({ reason: "force" });
+      requestTodayWidgetRenderOnDnp(120, true);
+      if (deleted.length) {
+        const lang = getLanguageSetting();
+        const bulkStrings = t(["dashboard", "bulk"], lang) || {};
+        showBulkUndoToast({
+          message: applyCountTemplate(
+            bulkStrings.deletedCount,
+            deleted.length,
+            `Deleted ${deleted.length} task${deleted.length === 1 ? "" : "s"}`
+          ),
+          successMessage: t(["toasts", "taskRestored"], lang) || bulkStrings.undoSuccess || "Changes undone",
+          failedMessage: t(["toasts", "restoreFailed"], lang) || bulkStrings.undoFailed || "Undo failed",
+          undo: async () => {
+            await withBulkOperationSuppression(async () => {
+              for (const snapshot of deleted) {
+                await restoreTaskFromSnapshot(snapshot, { deferExternalRefs: true });
+              }
+              for (const snapshot of deleted) {
+                await restoreExternalRefs(snapshot);
+              }
+              await activeDashboardController?.refresh?.({ reason: "force" });
+              requestTodayWidgetRenderOnDnp(120, true);
+            });
+          },
+        });
+      }
+      const summary = { total: results.length, succeeded: deleted.length, failed: results.length - deleted.length };
+      return { didDelete: deleted.length > 0, results, summary };
     }
 
     function isBtChildBlock(childString, attrNames) {
@@ -13148,6 +13819,7 @@ export default {
              <button data-action="meta-depends-remove" data-danger="1">${labelOr("removeDepends", "Remove all dependencies")}</button>`
           : `<button data-action="meta-depends-add">${labelOr("addDepends", "Add dependency")}</button>`
         }
+        <button data-action="delete-task" data-danger="1">${labelOr("deleteTask", "Delete task")}</button>
       `;
       const recurringBlock = isRecurring
         ? `
@@ -13262,6 +13934,9 @@ export default {
           attach('[data-action="meta-depends-remove"]', async () => {
             await applyMetadataPatch({ depends: [] });
             toast(t(["toasts", "dependencyRemoved"], getLanguageSetting()) || "Dependency removed");
+          });
+          attach('[data-action="delete-task"]', () => {
+            void deleteTaskFlow(uid, { source: "pill" });
           });
         },
       });
@@ -14101,8 +14776,10 @@ export default {
         },
         toggleTask,
         snoozeTask,
+        deleteTask: (uid) => deleteTaskFlow(uid, { source: "dashboard" }),
         bulkToggleTask,
         bulkSnoozeTask,
+        bulkDeleteTask: (uids) => bulkDeleteTasksFlow(uids, { source: "dashboard" }),
         bulkUpdateMetadata,
         openBlock,
         openPage,
@@ -15819,67 +16496,6 @@ export default {
             bulkOperationCooldownTimer = null;
           }, BULK_OPERATION_COOLDOWN_MS);
         }
-      }
-
-      function showBulkUndoToast({ message, undo }) {
-        const lang = getLanguageSetting();
-        const bulkStrings = t(["dashboard", "bulk"], lang) || {};
-        iziToast.show({
-          theme: "light",
-          color: "black",
-          class: "betterTasks bt-toast-undo",
-          position: "center",
-          message: message,
-          timeout: 6000,
-          close: true,
-          closeOnEscape: true,
-          closeOnClick: false,
-          buttons: [
-            [
-              `<button>${escapeHtml(bulkStrings.undo || "Undo")}</button>`,
-              async (instance, toastEl) => {
-                instance.hide({ transitionOut: "fadeOut" }, toastEl, "button");
-                try {
-                  await undo();
-                  iziToast.show({
-                    theme: "light",
-                    color: "black",
-                    class: "betterTasks bt-toast-info",
-                    message: bulkStrings.undoSuccess || "Changes undone",
-                    position: "center",
-                    timeout: 2000,
-                    close: false,
-                    closeOnEscape: true,
-                    closeOnClick: true,
-                    onOpening: (_instance, toastEl) => {
-                      applyToastA11y(toastEl);
-                    },
-                  });
-                } catch (err) {
-                  console.error("[BetterTasks] bulk undo failed", err);
-                  iziToast.show({
-                    theme: "light",
-                    color: "black",
-                    class: "betterTasks bt-toast-info",
-                    message: bulkStrings.undoFailed || "Undo failed",
-                    position: "center",
-                    timeout: 3000,
-                    close: false,
-                    closeOnEscape: true,
-                    closeOnClick: true,
-                    onOpening: (_instance, toastEl) => {
-                      applyToastA11y(toastEl);
-                    },
-                  });
-                }
-              },
-              true,
-            ],
-          ],
-          onOpening: (_instance, toastEl) => {
-            applyToastA11y(toastEl);
-          },
-        });
       }
 
       function removeTask(uid) {
