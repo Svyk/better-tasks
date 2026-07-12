@@ -46,6 +46,8 @@ const locale = {
     pillThresholdDescription: "Nombre maximal de cases avant que les pastilles en ligne ne sautent le rendu initial (par défaut 100). Des valeurs plus élevées seront rendues mais la page peut être plus lente.",
     pillsInQueryResults: "Pastilles en ligne dans les résultats de requêtes",
     pillsInQueryResultsDescription: "Affiche les pastilles sur chaque rendu d'une tâche — résultats de requêtes, intégrations, références liées — pas seulement le premier trouvé sur la page.",
+    pageRefWrites: "Écrire Projet/En attente/Contexte comme liens de page",
+    pageRefWritesDescription: "Stocke les valeurs de projet, en attente et contexte comme [[liens de page]] afin que les requêtes natives de Roam trouvent les Better Tasks. Crée des pages et des références liées pour ces valeurs. Les tâches existantes ne sont pas modifiées.",
     templates: "Modèles de tâches",
     templatesDescription: "Enregistrez des configurations de tâches comme modèles réutilisables avec des valeurs par défaut et une structure de sous-tâches.",
     manageTemplates: "Gérer les modèles",

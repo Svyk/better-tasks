@@ -46,6 +46,8 @@ const locale = {
     pillThresholdDescription: "Número máximo de caixas de verificação antes de as pastilhas inline do Better Tasks saltarem a renderização inicial (omissão 100). Valores mais altos renderizam mas a página pode ficar mais lenta.",
     pillsInQueryResults: "Pastilhas inline em resultados de consultas",
     pillsInQueryResultsDescription: "Renderiza as pastilhas em cada representação de uma tarefa — resultados de consultas, incorporações, referências ligadas — não apenas na primeira encontrada na página.",
+    pageRefWrites: "Gravar Projeto/Espera/Contexto como ligações de página",
+    pageRefWritesDescription: "Armazena os valores de projeto, espera e contexto como [[ligações de página]] para que as consultas nativas do Roam encontrem as Better Tasks. Cria páginas e referências ligadas para esses valores. As tarefas existentes não são alteradas.",
     templates: "Modelos de tarefas",
     templatesDescription: "Guarda configurações de tarefas como modelos reutilizáveis com metadados predefinidos e estrutura de subtarefas.",
     manageTemplates: "Gerir modelos",

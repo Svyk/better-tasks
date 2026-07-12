@@ -46,6 +46,8 @@ const locale = {
     pillThresholdDescription: "Numero massimo di checkbox prima che i badge inline di Better Tasks saltino il rendering iniziale (default 100). Valori più alti verranno renderizzati ma la pagina può rallentare.",
     pillsInQueryResults: "Badge inline nei risultati delle query",
     pillsInQueryResultsDescription: "Renderizza i badge su ogni visualizzazione di un'attività — risultati delle query, embed, riferimenti collegati — non solo sulla prima trovata nella pagina.",
+    pageRefWrites: "Scrivi Progetto/In attesa/Contesto come link di pagina",
+    pageRefWritesDescription: "Salva i valori di progetto, in attesa e contesto come [[link di pagina]] così le query native di Roam trovano le Better Tasks. Crea pagine e riferimenti collegati per quei valori. Le attività esistenti non vengono toccate.",
     templates: "Modelli di attività",
     templatesDescription: "Salva configurazioni di attività come modelli riutilizzabili con valori predefiniti e struttura di sottoattività.",
     manageTemplates: "Gestisci modelli",

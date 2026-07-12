@@ -46,6 +46,8 @@ const locale = {
     pillThresholdDescription: "Maximale Anzahl von Kontrollkästchen, bevor Inline-Pills das initiale Rendering überspringen (Standard 100). Höhere Werte werden gerendert, aber die Seite kann langsamer sein.",
     pillsInQueryResults: "Inline-Pills in Abfrageergebnissen",
     pillsInQueryResultsDescription: "Pills bei jeder Darstellung einer Aufgabe rendern — Abfrageergebnisse, Einbettungen, verknüpfte Referenzen — nicht nur bei der ersten auf der Seite gefundenen.",
+    pageRefWrites: "Projekt/Warten/Kontext als Seitenlinks schreiben",
+    pageRefWritesDescription: "Projekt-, Warten- und Kontextwerte als [[Seitenlinks]] speichern, damit native Roam-Abfragen Better Tasks finden. Erstellt Seiten und verknüpfte Referenzen für diese Werte. Bestehende Aufgaben bleiben unverändert.",
     templates: "Aufgabenvorlagen",
     templatesDescription: "Speichere Aufgabenkonfigurationen als wiederverwendbare Vorlagen mit Metadaten-Standards und Unteraufgabenstrukturen.",
     manageTemplates: "Vorlagen verwalten",

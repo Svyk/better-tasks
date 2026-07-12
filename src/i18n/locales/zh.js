@@ -46,6 +46,8 @@ const locale = {
     pillThresholdDescription: "当复选框数量超过此值时，内联徽标将跳过初始渲染（默认 100）。更高的值会渲染但可能使页面变慢。",
     pillsInQueryResults: "查询结果中的内联徽标",
     pillsInQueryResultsDescription: "在任务的每个呈现位置（查询结果、嵌入、链接引用）都渲染徽标，而不仅是页面上找到的第一个。",
+    pageRefWrites: "将项目/等待/情境写为页面链接",
+    pageRefWritesDescription: "将项目、等待和情境的值存储为[[页面链接]]，使 Roam 原生查询能找到 Better Tasks。会为这些值创建页面和链接引用。现有任务不受影响。",
     templates: "任务模板",
     templatesDescription: "将任务配置保存为可重复使用的模板，包含元数据默认值和子任务结构。",
     manageTemplates: "管理模板",

@@ -83,6 +83,11 @@ import {
   computeBlockedState as computeBlockedStateCore,
 } from "./core/dependencies";
 import {
+  wrapAsPageRef,
+  splitRefAwareList,
+  formatContextListForWrite,
+} from "./core/page-refs";
+import {
   normalizePulledSubtree,
   flattenSubtreeToCreateSteps,
   collectTreeUids,
@@ -260,6 +265,7 @@ const TODAY_WIDGET_PANEL_CHILD_TEXT_LEGACY = ["Today Widget Panel"];
 const PILL_THRESHOLD_SETTING = "bt-pill-checkbox-threshold";
 const DEFAULT_PILL_THRESHOLD = 100; // skip pill rendering when too many checkboxes are present
 const PILLS_IN_QUERY_RESULTS_SETTING = "bt-pills-in-query-results";
+const PAGE_REF_WRITES_SETTING = "bt-page-ref-writes";
 const SUPPORTED_LANGUAGES = Object.keys(I18N_MAP || { en: {} });
 const EN_STRING_PATH_MAP = new Map();
 let currentLanguage = "en";
@@ -604,6 +610,15 @@ export default {
           description: tr(
             "settings.pillsInQueryResultsDescription",
             "Render pills on every rendering of a task — query results, embeds, linked references — not just the first one found on the page"
+          ),
+          action: { type: "switch" },
+        },
+        {
+          id: PAGE_REF_WRITES_SETTING,
+          name: tr("settings.pageRefWrites", "Write Project/Waiting/Context as page links"),
+          description: tr(
+            "settings.pageRefWritesDescription",
+            "Store project, waiting-for and context values as [[page links]] so native Roam queries find Better Tasks. Creates pages and linked references for those values. Existing tasks are untouched."
           ),
           action: { type: "switch" },
         },
@@ -1356,6 +1371,9 @@ export default {
     }
     if (extensionAPI.settings.get(PILLS_IN_QUERY_RESULTS_SETTING) == null) {
       extensionAPI.settings.set(PILLS_IN_QUERY_RESULTS_SETTING, true);
+    }
+    if (extensionAPI.settings.get(PAGE_REF_WRITES_SETTING) == null) {
+      extensionAPI.settings.set(PAGE_REF_WRITES_SETTING, true);
     }
     if (extensionAPI.settings.get(ACTIVITY_LOG_TEXT_EDITS_SETTING) == null) {
       extensionAPI.settings.set(ACTIVITY_LOG_TEXT_EDITS_SETTING, false);
@@ -4637,8 +4655,8 @@ export default {
 
     function normalizeContextList(value) {
       if (typeof value !== "string") return [];
-      return value
-        .split(",")
+      // Ref-aware split: commas inside [[...]] belong to the page title.
+      return splitRefAwareList(value)
         .map((token) => stripLinkOrTag(token))
         .map((token) => token.replace(/^@+/, "").trim())
         .filter(Boolean);
@@ -6249,7 +6267,13 @@ export default {
       }
       if ("completed" in patch) {
         if (patch.completed == null || String(patch.completed).trim() === "") await removeChildAttrsForType(uid, "completed", attrNames);
-        else await ensureChildAttrForType(uid, "completed", String(patch.completed).trim(), attrNames);
+        else {
+          // Normalise to a Roam date page ref like every UI completion does;
+          // unparseable input falls back to the verbatim string.
+          const rawCompleted = String(patch.completed).trim();
+          const completedParsed = parseDateFromText(rawCompleted, set).date;
+          await ensureChildAttrForType(uid, "completed", completedParsed ? formatDate(completedParsed, set) : rawCompleted, attrNames);
+        }
       }
       if ("project" in patch) {
         const val = patch.project == null ? null : normalizeProjectValue(String(patch.project || ""));
@@ -7091,6 +7115,15 @@ export default {
       return result;
     }
 
+    function pageRefWritesEnabled() {
+      try {
+        const val = extensionAPI.settings.get(PAGE_REF_WRITES_SETTING);
+        return val !== false && val !== "false";
+      } catch (_) {
+        return true;
+      }
+    }
+
     async function setRichAttribute(uid, type, value, attrNames = resolveAttributeNames()) {
       if (!uid) return;
       const hasValue =
@@ -7149,7 +7182,20 @@ export default {
         }
         return;
       }
-      await ensureChildAttrForType(uid, type, writeValue, attrNames);
+      // Page-entity attributes are stored as [[page refs]] so native Roam
+      // queries discover Better Tasks; option stores and readers keep working
+      // on the stripped value (they all unwrap brackets).
+      let storedValue = writeValue;
+      if (pageRefWritesEnabled()) {
+        if ((type === "project" || type === "waitingFor") && typeof writeValue === "string") {
+          storedValue = wrapAsPageRef(writeValue);
+        } else if (type === "context") {
+          storedValue = formatContextListForWrite(
+            Array.isArray(value) ? value : splitRefAwareList(String(writeValue))
+          );
+        }
+      }
+      await ensureChildAttrForType(uid, type, storedValue, attrNames);
       if (type === "project" && writeValue) {
         addProjectOption(writeValue);
       }

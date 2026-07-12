@@ -46,6 +46,8 @@ const locale = {
     pillThresholdDescription: "Max checkbox count before Better Tasks inline pills skip initial rendering (default 100). Higher values will render but the page may be slower.",
     pillsInQueryResults: "Inline pills in query results",
     pillsInQueryResultsDescription: "Render pills on every rendering of a task — query results, embeds, linked references — not just the first one found on the page.",
+    pageRefWrites: "Write Project/Waiting/Context as page links",
+    pageRefWritesDescription: "Store project, waiting-for and context values as [[page links]] so native Roam queries find Better Tasks. Creates pages and linked references for those values. Existing tasks are untouched.",
     templates: "Task Templates",
     templatesDescription: "Save task configurations as reusable templates with metadata defaults and subtask structures.",
     manageTemplates: "Manage templates",

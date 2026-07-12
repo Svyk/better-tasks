@@ -46,6 +46,8 @@ const locale = {
     pillThresholdDescription: "インラインピルが初期レンダリングをスキップするチェックボックスの最大数（デフォルト100）。高い値はレンダリングされますがページが遅くなる可能性があります。",
     pillsInQueryResults: "クエリ結果のインラインピル",
     pillsInQueryResultsDescription: "ページ内で最初に見つかったものだけでなく、タスクのすべての表示（クエリ結果、埋め込み、リンク参照）にピルを表示します。",
+    pageRefWrites: "プロジェクト/待機/コンテキストをページリンクとして書き込む",
+    pageRefWritesDescription: "プロジェクト、待機、コンテキストの値を[[ページリンク]]として保存し、Roamのネイティブクエリで Better Tasks を見つけられるようにします。それらの値のページとリンク参照が作成されます。既存のタスクは変更されません。",
     templates: "タスクテンプレート",
     templatesDescription: "メタデータのデフォルトとサブタスク構造を含む、再利用可能なテンプレートとしてタスク設定を保存します。",
     manageTemplates: "テンプレートを管理",
