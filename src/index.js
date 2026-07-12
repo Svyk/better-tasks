@@ -3598,6 +3598,15 @@ export default {
         // for the whole batch.
         const seenTodoRemovals = new Set();
         const seenDoneAdditions = new Set();
+        // bt-query result rows are block DOM, so they trip the pill trigger by
+        // design — but they must NOT trip the bt-query scan, or every render
+        // schedules the scan that produced it.
+        let shouldScanBtQuery = false;
+        const noteBtQueryScanTrigger = (node) => {
+          if (shouldScanBtQuery) return;
+          if (node?.closest?.(".bt-query-root")) return;
+          shouldScanBtQuery = true;
+        };
         for (const mutation of mutationsList) {
           if (mutation.type === "attributes") {
             const target = mutation.target;
@@ -3693,20 +3702,22 @@ export default {
             }
             // New blocks/checkboxes appearing are the main case for pill decoration (scroll/render).
             if (
-              !shouldBatchRefreshPills &&
-              (node.matches?.(".rm-block-main, .roam-block-container, .roam-block, .rm-checkbox") ||
-                node.querySelector?.(".rm-block-main, .roam-block-container, .roam-block, .rm-checkbox"))
+              node.matches?.(".rm-block-main, .roam-block-container, .roam-block, .rm-checkbox") ||
+              node.querySelector?.(".rm-block-main, .roam-block-container, .roam-block, .rm-checkbox")
             ) {
               shouldBatchRefreshPills = true;
+              noteBtQueryScanTrigger(node);
             }
           }
         }
         // Batch refresh pills once per mutation batch instead of per node to reduce churn.
         if (shouldBatchRefreshPills) {
           schedulePillRefreshAll(120);
-          // New/changed block DOM is also when {{bt-query}} buttons appear
-          // and when mounted result lists may need a live update.
-          scheduleBtQueryScan(180);
+        }
+        // New block DOM outside our own panels is when {{bt-query}} buttons
+        // appear and when a source block may have been edited.
+        if (shouldScanBtQuery) {
+          scheduleBtQueryScan(250);
         }
 
         sweepCompletionPairs();
@@ -6086,6 +6097,22 @@ export default {
     const btQueryMounts = new Map(); // container -> {uid, host, btn, rowHosts, signature, parsed, rendering}
     let btQueryScanTimer = null;
     let btQueryScanRunning = false;
+    // Re-running the search engine for every panel on every mutation batch is
+    // what made typing near a bt-query stutter: each run rebuilds the task
+    // snapshot and every summary. Data refreshes are throttled per panel; the
+    // ↻ button, mounting, and a filter edit all bypass it (force).
+    const BT_QUERY_REFRESH_MIN_MS = 5000;
+
+    function isRoamEditing() {
+      try {
+        const el = document.activeElement;
+        if (!el) return false;
+        const tag = el.tagName;
+        return tag === "TEXTAREA" || tag === "INPUT" || el.isContentEditable === true;
+      } catch (_) {
+        return false;
+      }
+    }
 
     function btQueryEnabled() {
       try {
@@ -6118,10 +6145,11 @@ export default {
 
     function unmountBtQueryEntry(container, entry) {
       unmountBtQueryRows(entry);
-      if (entry?.btn?.isConnected) {
+      for (const btn of entry?.btns || []) {
+        if (!btn?.isConnected) continue;
         try {
-          entry.btn.style.removeProperty("display");
-          delete entry.btn.dataset.btQueryMounted;
+          btn.style.removeProperty("display");
+          delete btn.dataset.btQueryMounted;
         } catch (_) { /* ignore */ }
       }
       try {
@@ -6147,6 +6175,13 @@ export default {
 
     async function scanBtQueryBlocks() {
       if (btQueryScanRunning || typeof document === "undefined") return;
+      // While the user is typing, Roam emits mutations continuously. Scanning
+      // then competes with input for the main thread, so defer until the edit
+      // settles — the block's rendered button doesn't exist mid-edit anyway.
+      if (isRoamEditing() && btQueryMounts.size) {
+        scheduleBtQueryScan(600);
+        return;
+      }
       btQueryScanRunning = true;
       try {
         // Sweep mounts whose container Roam destroyed (navigation, block
@@ -6190,9 +6225,14 @@ export default {
           if (btn.closest(".bt-query-root")) continue; // never inside our own rows
           const host = btn.closest(".rm-block-main") || btn.closest(".roam-block");
           if (!host) continue;
-          if (Array.from(btQueryMounts.values()).some((e) => e.host === host)) {
-            // One mount per block; extra invocations in the same block stay inert.
+          const existing = Array.from(btQueryMounts.values()).find((e) => e.host === host);
+          if (existing) {
+            // Either a second invocation in the same block (one panel per
+            // block), or the button Roam re-rendered after an edit — adopt it
+            // so it stays hidden and is restored on teardown.
             btn.dataset.btQueryMounted = "1";
+            btn.style.display = "none";
+            if (!existing.btns.includes(btn)) existing.btns.push(btn);
             continue;
           }
           const uid = findBlockUidFromElement(host) || findBlockUidFromElement(btn);
@@ -6203,12 +6243,14 @@ export default {
           if (!parsed.isBtQuery) continue;
           mountBtQuery(host, btn, uid, parsed, text);
         }
-        // Live update: re-render mounted entries whose results changed
-        // (signature check inside renderBtQuery makes this a no-op otherwise).
+        // Live update: re-run the engine at most once per panel per
+        // BT_QUERY_REFRESH_MIN_MS (the signature check then makes the DOM
+        // work a no-op when results are unchanged).
+        const nowScan = Date.now();
         for (const [container, entry] of Array.from(btQueryMounts.entries())) {
-          if (container.isConnected && !entry.parsed.errors?.length) {
-            void renderBtQuery(container, entry);
-          }
+          if (!container.isConnected || entry.parsed.errors?.length) continue;
+          if (nowScan - (entry.lastRunAt || 0) < BT_QUERY_REFRESH_MIN_MS) continue;
+          void renderBtQuery(container, entry);
         }
       } catch (err) {
         if (window.__btDebug) console.warn("[BetterTasks] bt-query scan failed", err);
@@ -6313,11 +6355,12 @@ export default {
         const entry = {
           uid,
           host,
-          btn,
+          btns: [btn],
           rowHosts: [],
           signature: null,
           parsed,
           sourceText: sourceText || "",
+          lastRunAt: 0,
           rendering: false,
         };
         btQueryMounts.set(container, entry);
@@ -6410,6 +6453,7 @@ export default {
     async function renderBtQuery(container, entry, options = {}) {
       if (!container.isConnected || entry.rendering) return;
       entry.rendering = true;
+      entry.lastRunAt = Date.now();
       try {
         const lang = getLanguageSetting();
         if (entry.parsed.errors?.length) {
