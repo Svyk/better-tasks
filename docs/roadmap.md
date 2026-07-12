@@ -310,6 +310,9 @@ This document is the **canonical Better Tasks roadmap**, integrating shipped wor
 
 **Mission:** Remove daily-use friction and pay down structural debt. These are candidates, not commitments — roughly priority-ordered; promote to committed work as capacity allows.
 
+### review settings pane order, grouping
+- Make sure the settings panel, which is getting longer every time we add a new feature, makes logical sense to a user, hides irrelevant options behind toggles that are OFF, and has general vs advanced user settings clearly marked
+
 ### Task Deletion (dashboard + pill menu) — Implemented ✅ (2026-07-11, pending live-graph verification)
 Was the top daily-use friction: the only way to delete a task used to be View → open in graph → manually delete the blocks. Shipped with a snapshot-first design: BT-managed refs into the subtree are pre-cleaned so Roam never flattens them, and undo restores the tree (original uids) plus refs on both sides.
 - Delete task from the dashboard task actions (⋯) menu and the inline pill ⋯ menu
