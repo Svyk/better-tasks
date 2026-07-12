@@ -44,6 +44,8 @@ const locale = {
     excludePicklistPagesPlaceholder: "Templates, SmartBlocks, [[December 18th, 2025]]",
     pillThreshold: "Soglia checkbox per badge inline",
     pillThresholdDescription: "Numero massimo di checkbox prima che i badge inline di Better Tasks saltino il rendering iniziale (default 100). Valori più alti verranno renderizzati ma la pagina può rallentare.",
+    pillsInQueryResults: "Badge inline nei risultati delle query",
+    pillsInQueryResultsDescription: "Renderizza i badge su ogni visualizzazione di un'attività — risultati delle query, embed, riferimenti collegati — non solo sulla prima trovata nella pagina.",
     templates: "Modelli di attività",
     templatesDescription: "Salva configurazioni di attività come modelli riutilizzabili con valori predefiniti e struttura di sottoattività.",
     manageTemplates: "Gestisci modelli",

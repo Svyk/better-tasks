@@ -44,6 +44,8 @@ const locale = {
     excludePicklistPagesPlaceholder: "Templates, SmartBlocks, [[December 18th, 2025]]",
     pillThreshold: "Inline pill checkbox threshold",
     pillThresholdDescription: "Max checkbox count before Better Tasks inline pills skip initial rendering (default 100). Higher values will render but the page may be slower.",
+    pillsInQueryResults: "Inline pills in query results",
+    pillsInQueryResultsDescription: "Render pills on every rendering of a task — query results, embeds, linked references — not just the first one found on the page.",
     templates: "Task Templates",
     templatesDescription: "Save task configurations as reusable templates with metadata defaults and subtask structures.",
     manageTemplates: "Manage templates",

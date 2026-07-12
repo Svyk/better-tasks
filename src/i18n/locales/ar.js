@@ -44,6 +44,8 @@ const locale = {
     excludePicklistPagesPlaceholder: "Templates, SmartBlocks, [[December 18th, 2025]]",
     pillThreshold: "حد عدد مربعات الاختيار للشارات المضمنة",
     pillThresholdDescription: "الحد الأقصى لعدد مربعات الاختيار قبل أن تتخطى شارات Better Tasks المضمنة العرض الأولي (الافتراضي 100). القيم الأعلى ستُعرض لكن قد تُبطئ الصفحة.",
+    pillsInQueryResults: "الشارات المضمنة في نتائج الاستعلام",
+    pillsInQueryResultsDescription: "عرض الشارات في كل ظهور للمهمة — نتائج الاستعلام والتضمينات والمراجع المرتبطة — وليس فقط في أول ظهور في الصفحة.",
     templates: "قوالب المهام",
     templatesDescription: "احفظ إعدادات المهام كقوالب قابلة لإعادة الاستخدام مع قيم بيانات وصفية افتراضية وبنية المهام الفرعية.",
     manageTemplates: "إدارة القوالب",

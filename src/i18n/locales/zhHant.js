@@ -44,6 +44,8 @@ const locale = {
     excludePicklistPagesPlaceholder: "Templates, SmartBlocks, [[December 18th, 2025]]",
     pillThreshold: "內嵌標籤勾選框門檻",
     pillThresholdDescription: "當勾選框數量超過此值時，內嵌標籤會跳過初始渲染（預設 100）。較高數值會渲染但可能讓頁面變慢。",
+    pillsInQueryResults: "查詢結果中的內嵌標籤",
+    pillsInQueryResultsDescription: "在任務的每個呈現位置（查詢結果、嵌入、連結引用）都渲染標籤，而不只是頁面上找到的第一個。",
     templates: "任務範本",
     templatesDescription: "將任務設定儲存為可重複使用的範本，包含中繼資料預設值和子任務結構。",
     manageTemplates: "管理範本",

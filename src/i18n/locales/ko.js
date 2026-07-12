@@ -44,6 +44,8 @@ const locale = {
     excludePicklistPagesPlaceholder: "Templates, SmartBlocks, [[December 18th, 2025]]",
     pillThreshold: "인라인 필 체크박스 임계값",
     pillThresholdDescription: "Better Tasks 인라인 필이 초기 렌더링을 건너뛰기 전 최대 체크박스 수(기본 100). 값을 높이면 렌더링되지만 페이지가 느려질 수 있습니다.",
+    pillsInQueryResults: "쿼리 결과의 인라인 필",
+    pillsInQueryResultsDescription: "페이지에서 처음 발견된 항목뿐 아니라 작업이 표시되는 모든 위치(쿼리 결과, 임베드, 연결된 참조)에 필을 렌더링합니다.",
     templates: "작업 템플릿",
     templatesDescription: "메타데이터 기본값과 하위 작업 구조가 포함된 재사용 가능한 템플릿으로 작업 구성을 저장합니다.",
     manageTemplates: "템플릿 관리",

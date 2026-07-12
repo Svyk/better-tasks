@@ -44,6 +44,8 @@ const locale = {
     excludePicklistPagesPlaceholder: "Templates, SmartBlocks, [[December 18th, 2025]]",
     pillThreshold: "内联徽标复选框阈值",
     pillThresholdDescription: "当复选框数量超过此值时，内联徽标将跳过初始渲染（默认 100）。更高的值会渲染但可能使页面变慢。",
+    pillsInQueryResults: "查询结果中的内联徽标",
+    pillsInQueryResultsDescription: "在任务的每个呈现位置（查询结果、嵌入、链接引用）都渲染徽标，而不仅是页面上找到的第一个。",
     templates: "任务模板",
     templatesDescription: "将任务配置保存为可重复使用的模板，包含元数据默认值和子任务结构。",
     manageTemplates: "管理模板",

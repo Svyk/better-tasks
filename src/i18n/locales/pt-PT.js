@@ -44,6 +44,8 @@ const locale = {
     excludePicklistPagesPlaceholder: "Templates, SmartBlocks, [[December 18th, 2025]]",
     pillThreshold: "Limiar de caixas de verificação para pastilhas inline",
     pillThresholdDescription: "Número máximo de caixas de verificação antes de as pastilhas inline do Better Tasks saltarem a renderização inicial (omissão 100). Valores mais altos renderizam mas a página pode ficar mais lenta.",
+    pillsInQueryResults: "Pastilhas inline em resultados de consultas",
+    pillsInQueryResultsDescription: "Renderiza as pastilhas em cada representação de uma tarefa — resultados de consultas, incorporações, referências ligadas — não apenas na primeira encontrada na página.",
     templates: "Modelos de tarefas",
     templatesDescription: "Guarda configurações de tarefas como modelos reutilizáveis com metadados predefinidos e estrutura de subtarefas.",
     manageTemplates: "Gerir modelos",

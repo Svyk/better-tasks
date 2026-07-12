@@ -44,6 +44,8 @@ const locale = {
     excludePicklistPagesPlaceholder: "Templates, SmartBlocks, [[December 18th, 2025]]",
     pillThreshold: "Umbral de casillas para píldoras en línea",
     pillThresholdDescription: "Cantidad máxima de casillas antes de que las píldoras en línea omitan el renderizado inicial (por defecto 100). Valores más altos se renderizan pero la página puede ser más lenta.",
+    pillsInQueryResults: "Píldoras en línea en resultados de consultas",
+    pillsInQueryResultsDescription: "Renderiza las píldoras en cada representación de una tarea — resultados de consultas, incrustaciones, referencias vinculadas — no solo en la primera encontrada en la página.",
     templates: "Plantillas de tareas",
     templatesDescription: "Guarda configuraciones de tareas como plantillas reutilizables con metadatos predeterminados y estructura de subtareas.",
     manageTemplates: "Administrar plantillas",

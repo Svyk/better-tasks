@@ -44,6 +44,8 @@ const locale = {
     excludePicklistPagesPlaceholder: "Templates, SmartBlocks, [[December 18th, 2025]]",
     pillThreshold: "Schwellenwert für Inline-Pill-Kontrollkästchen",
     pillThresholdDescription: "Maximale Anzahl von Kontrollkästchen, bevor Inline-Pills das initiale Rendering überspringen (Standard 100). Höhere Werte werden gerendert, aber die Seite kann langsamer sein.",
+    pillsInQueryResults: "Inline-Pills in Abfrageergebnissen",
+    pillsInQueryResultsDescription: "Pills bei jeder Darstellung einer Aufgabe rendern — Abfrageergebnisse, Einbettungen, verknüpfte Referenzen — nicht nur bei der ersten auf der Seite gefundenen.",
     templates: "Aufgabenvorlagen",
     templatesDescription: "Speichere Aufgabenkonfigurationen als wiederverwendbare Vorlagen mit Metadaten-Standards und Unteraufgabenstrukturen.",
     manageTemplates: "Vorlagen verwalten",

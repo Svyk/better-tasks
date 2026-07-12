@@ -44,6 +44,8 @@ const locale = {
     excludePicklistPagesPlaceholder: "Templates, SmartBlocks, [[December 18th, 2025]]",
     pillThreshold: "Seuil de cases pour les pastilles en ligne",
     pillThresholdDescription: "Nombre maximal de cases avant que les pastilles en ligne ne sautent le rendu initial (par défaut 100). Des valeurs plus élevées seront rendues mais la page peut être plus lente.",
+    pillsInQueryResults: "Pastilles en ligne dans les résultats de requêtes",
+    pillsInQueryResultsDescription: "Affiche les pastilles sur chaque rendu d'une tâche — résultats de requêtes, intégrations, références liées — pas seulement le premier trouvé sur la page.",
     templates: "Modèles de tâches",
     templatesDescription: "Enregistrez des configurations de tâches comme modèles réutilisables avec des valeurs par défaut et une structure de sous-tâches.",
     manageTemplates: "Gérer les modèles",

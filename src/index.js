@@ -259,6 +259,7 @@ const TODAY_WIDGET_PANEL_CHILD_TEXT = "";
 const TODAY_WIDGET_PANEL_CHILD_TEXT_LEGACY = ["Today Widget Panel"];
 const PILL_THRESHOLD_SETTING = "bt-pill-checkbox-threshold";
 const DEFAULT_PILL_THRESHOLD = 100; // skip pill rendering when too many checkboxes are present
+const PILLS_IN_QUERY_RESULTS_SETTING = "bt-pills-in-query-results";
 const SUPPORTED_LANGUAGES = Object.keys(I18N_MAP || { en: {} });
 const EN_STRING_PATH_MAP = new Map();
 let currentLanguage = "en";
@@ -596,6 +597,15 @@ export default {
             "Max checkbox count before Better Tasks inline pills skip initial rendering (default 100). Higher values will render but the page may be slower."
           ),
           action: { type: "input", placeholder: DEFAULT_PILL_THRESHOLD.toString() },
+        },
+        {
+          id: PILLS_IN_QUERY_RESULTS_SETTING,
+          name: tr("settings.pillsInQueryResults", "Inline pills in query results"),
+          description: tr(
+            "settings.pillsInQueryResultsDescription",
+            "Render pills on every rendering of a task — query results, embeds, linked references — not just the first one found on the page"
+          ),
+          action: { type: "switch" },
         },
       ];
       const reviewStepDescription = tr(
@@ -1343,6 +1353,9 @@ export default {
 
     if (extensionAPI.settings.get(ACTIVITY_LOG_ENABLED_SETTING) == null) {
       extensionAPI.settings.set(ACTIVITY_LOG_ENABLED_SETTING, true);
+    }
+    if (extensionAPI.settings.get(PILLS_IN_QUERY_RESULTS_SETTING) == null) {
+      extensionAPI.settings.set(PILLS_IN_QUERY_RESULTS_SETTING, true);
     }
     if (extensionAPI.settings.get(ACTIVITY_LOG_TEXT_EDITS_SETTING) == null) {
       extensionAPI.settings.set(ACTIVITY_LOG_TEXT_EDITS_SETTING, false);
@@ -12833,6 +12846,15 @@ export default {
       }
     }
 
+    function pillsInQueryResultsEnabled() {
+      try {
+        const val = extensionAPI.settings.get(PILLS_IN_QUERY_RESULTS_SETTING);
+        return val !== false && val !== "false";
+      } catch (_) {
+        return true;
+      }
+    }
+
     async function decorateBlockPills(rootEl) {
       if (!rootEl) return;
       const now = Date.now();
@@ -12969,7 +12991,12 @@ export default {
       })();
       let decoratedThisPass = 0;
       const MAX_DECORATIONS_PER_PASS = restrictToVisible ? 120 : 300;
+      // Per-host dedupe lets duplicated renderings of the same uid (query results,
+      // embeds, linked refs) each get their own pill; per-uid restores the old
+      // first-host-wins behavior as a kill switch.
+      const perHostDedupe = pillsInQueryResultsEnabled();
       const seen = new Set();
+      const seenUids = new Set(); // gates side effects that must run once per uid per pass
       const explicitSubtaskMap = new Map(); // parentUid -> [{uid, isCompleted}]
       const set = S();
       const attrNames = set.attrNames;
@@ -13015,10 +13042,13 @@ export default {
           }
           clearPendingPillTimer(uid);
 
-          if (seen.has(uid)) {
+          const seenKey = perHostDedupe ? main : uid;
+          if (seen.has(seenKey)) {
             continue;
           }
-          seen.add(uid);
+          seen.add(seenKey);
+          const firstHostForUid = !seenUids.has(uid);
+          seenUids.add(uid);
 
           const isFocused = !!main.querySelector?.(".rm-block__input--active, .rm-block__input--focused");
           if (isFocused) {
@@ -13039,16 +13069,16 @@ export default {
           const hasTiming = !!meta.hasTimingAttrs;
           const isRecurring = !!meta.repeat;
           const isBetterTask = isBetterTasksTask(meta);
-          if (isBetterTask) enqueueDashboardNotifyBlockChange(uid);
+          if (isBetterTask && firstHostForUid) enqueueDashboardNotifyBlockChange(uid);
           const metadataInfo = meta.metadata || parseRichMetadata(meta.childAttrMap || {}, attrNames);
           // Track explicit BT_attrParent relationships for post-loop progress computation
-          if (isBetterTask && metadataInfo?.parentTaskUid) {
+          if (isBetterTask && firstHostForUid && metadataInfo?.parentTaskUid) {
             const puid = metadataInfo.parentTaskUid;
             if (!explicitSubtaskMap.has(puid)) explicitSubtaskMap.set(puid, []);
             explicitSubtaskMap.get(puid).push({ uid, isCompleted: isBlockCompleted(block) });
           }
           // Clean up stale depends child block (ref replaced with plain text after dependency deleted)
-          if (metadataInfo._hasStaleDependsValue) {
+          if (metadataInfo._hasStaleDependsValue && firstHostForUid) {
             void (async () => {
               try {
                 invalidateBlockCache(uid);
