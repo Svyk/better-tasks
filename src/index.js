@@ -6149,14 +6149,38 @@ export default {
       if (btQueryScanRunning || typeof document === "undefined") return;
       btQueryScanRunning = true;
       try {
-        // Sweep mounts whose container Roam destroyed (block edited/deleted,
-        // navigation) so the reappearing button gets a fresh mount.
+        // Sweep mounts whose container Roam destroyed (navigation, block
+        // deletion) so the reappearing button gets a fresh mount.
         for (const [container, entry] of Array.from(btQueryMounts.entries())) {
           if (!container.isConnected) unmountBtQueryEntry(container, entry);
         }
         if (!btQueryEnabled()) {
           teardownBtQueryMounts();
           return;
+        }
+        // Re-parse live mounts whose source block changed. Roam re-renders the
+        // block on edit but does NOT remove our container (React doesn't own
+        // it), so the mount survives — without this the panel would keep
+        // serving the filters it was first mounted with.
+        for (const [container, entry] of Array.from(btQueryMounts.entries())) {
+          if (!container.isConnected) continue;
+          const block = await getBlock(entry.uid);
+          if (!block) {
+            unmountBtQueryEntry(container, entry);
+            continue;
+          }
+          const text = block.string || "";
+          if (text === entry.sourceText) continue;
+          const reparsed = parseBtQuery(text);
+          if (!reparsed.isBtQuery) {
+            // The invocation was edited away entirely.
+            unmountBtQueryEntry(container, entry);
+            continue;
+          }
+          entry.parsed = reparsed;
+          entry.sourceText = text;
+          entry.signature = null;
+          await renderBtQuery(container, entry, { force: true });
         }
         const buttons = document.querySelectorAll("button.bp3-button:not([data-bt-query-mounted])");
         for (const btn of buttons) {
@@ -6174,9 +6198,10 @@ export default {
           const uid = findBlockUidFromElement(host) || findBlockUidFromElement(btn);
           if (!uid) continue;
           const block = await getBlock(uid);
-          const parsed = parseBtQuery(block?.string || "");
+          const text = block?.string || "";
+          const parsed = parseBtQuery(text);
           if (!parsed.isBtQuery) continue;
-          mountBtQuery(host, btn, uid, parsed);
+          mountBtQuery(host, btn, uid, parsed, text);
         }
         // Live update: re-render mounted entries whose results changed
         // (signature check inside renderBtQuery makes this a no-op otherwise).
@@ -6196,13 +6221,20 @@ export default {
       if (typeof document === "undefined" || document.getElementById("bt-query-style")) return;
       const style = document.createElement("style");
       style.id = "bt-query-style";
+      // Theme-safe by construction: translucent greys over whatever Roam's
+      // theme paints, and colour always inherited. Never use --bt-panel-bg
+      // here — it is a light value, and against Roam's dark theme (which
+      // keeps text light) it renders light-on-light.
       style.textContent = `
         .bt-query-root {
+          width: 100%;
+          box-sizing: border-box;
           margin: 4px 0 2px;
           padding: 6px 8px;
-          border: 1px solid var(--bt-border, rgba(0,0,0,0.15));
+          border: 1px solid rgba(128,128,128,0.28);
           border-radius: 8px;
-          background: var(--bt-panel-bg, rgba(0,0,0,0.02));
+          background: rgba(128,128,128,0.06);
+          color: inherit;
         }
         .bt-query-header {
           display: flex;
@@ -6211,24 +6243,27 @@ export default {
           gap: 8px;
           margin-bottom: 4px;
           font-size: 12px;
-          opacity: 0.78;
+          opacity: 0.75;
         }
         .bt-query-refresh {
-          border: 1px solid var(--bt-border, rgba(0,0,0,0.22));
+          border: 1px solid rgba(128,128,128,0.35);
           border-radius: 6px;
-          background: var(--bt-panel-bg, #fff);
-          color: var(--bt-panel-text, inherit);
+          background: transparent;
+          color: inherit;
           padding: 0 6px;
           cursor: pointer;
           line-height: 1.5;
         }
         .bt-query-refresh:hover {
-          opacity: 0.8;
+          background: rgba(128,128,128,0.15);
         }
         .bt-query-list {
           display: flex;
           flex-direction: column;
           gap: 2px;
+        }
+        .bt-query-row {
+          width: 100%;
         }
         .bt-query-row-fallback {
           padding: 2px 4px;
@@ -6239,10 +6274,11 @@ export default {
           padding: 2px 4px;
         }
         .bt-query-error {
-          border: 1px solid rgba(217,130,43,0.5);
+          border: 1px solid rgba(217,130,43,0.55);
           border-radius: 6px;
           padding: 6px 8px;
-          background: rgba(217,130,43,0.08);
+          background: rgba(217,130,43,0.12);
+          color: inherit;
         }
         .bt-query-error-title {
           font-weight: 600;
@@ -6261,7 +6297,7 @@ export default {
       document.head.appendChild(style);
     }
 
-    function mountBtQuery(host, btn, uid, parsed) {
+    function mountBtQuery(host, btn, uid, parsed, sourceText) {
       try {
         ensureBtQueryStyles();
         btn.dataset.btQueryMounted = "1";
@@ -6269,8 +6305,21 @@ export default {
         const container = document.createElement("div");
         container.className = "bt-query-root";
         container.dataset.btQueryUid = uid;
-        host.appendChild(container);
-        const entry = { uid, host, btn, rowHosts: [], signature: null, parsed, rendering: false };
+        // `.rm-block-main` is a flex ROW — appending there makes the panel a
+        // flex item beside the block text (narrow, right-shifted). The block
+        // container is the column, so the panel gets the full width.
+        const mountParent = host.closest?.(".roam-block-container") || host;
+        mountParent.appendChild(container);
+        const entry = {
+          uid,
+          host,
+          btn,
+          rowHosts: [],
+          signature: null,
+          parsed,
+          sourceText: sourceText || "",
+          rendering: false,
+        };
         btQueryMounts.set(container, entry);
         void renderBtQuery(container, entry, { force: true });
       } catch (err) {
