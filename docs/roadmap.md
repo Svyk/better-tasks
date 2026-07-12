@@ -245,15 +245,15 @@ This document is the **canonical Better Tasks roadmap**, integrating shipped wor
 
 ---
 
-## 🌐 Phase 10 — Ecosystem & Insights (In progress — Roam Query Integration remaining)
+## 🌐 Phase 10 — Ecosystem & Insights (Complete ✅ — Roam Query Integration pending live-graph verification)
 
 **Mission:** Expand outward without betraying core values.
 
-### Roam Query Integration — Remaining ⏳
-- **Enhanced native query results:** MutationObserver on `{{query}}` result blocks to detect BT tasks and inject pill badges (due, project, status) — zero learning curve, users keep existing queries
-- **Page-ref consistency:** ensure all BT attributes that reference pages use `[[page refs]]` so native `{{query}}` naturally discovers BT tasks
-- **`{{bt-query}}` block renderer (optional):** simpler syntax (`{{bt-query: project="X" status="TODO"}}`) for users who don't know Datalog, with interactive task rows powered by the existing `bt_search` engine
-- **Datalog helpers:** documented query snippets for common BT filters (overdue, by project, stalled, waiting-for)
+### Roam Query Integration — Implemented ✅ (2026-07-12, pending live-graph verification)
+- ✅ **Enhanced native query results:** the pill decorator now dedupes per DOM host instead of per uid, so duplicated renderings of a task (query results, embeds, linked references) each get pills; once-per-uid side effects (dashboard notify, subtask-progress tracking, stale-depends cleanup) stay single-fire behind a `seenUids` guard. Setting `bt-pills-in-query-results` (default ON) restores the old first-host-wins behaviour when off. No new observer was needed — the existing one already covered query results; the uid dedupe was the whole gap.
+- ✅ **Page-ref consistency:** `setRichAttribute` writes Project / Waiting-for / Context as `[[page refs]]` via the new pure module `src/core/page-refs.js` (idempotent wrap, ref-aware comma split; `normalizeContextList` is now bracket-safe so comma-containing titles survive). An explicitly-passed `completed` through the tools API is normalised to a Roam date ref like every UI completion. All readers were already bracket-tolerant, so old plain-text tasks read identically — **no migration; new writes only** (user decision 2026-07-12). Setting `bt-page-ref-writes` (default ON). Enums (GTD/priority/energy) stay plain deliberately.
+- ✅ **`{{bt-query}}` component:** detect-and-mount on Roam's rendered plain button (scan piggybacks the existing mutation pipeline — no second MutationObserver). Syntax parsed by pure `src/core/bt-query-parser.js` (mirrors the `bt_search` vocabulary 1:1; unknown keys/malformed values render inline errors with a key hint). Rows are native Roam blocks via `ui.components.renderBlock` with `open?: false` (feature-detected; `renderString`/plain-text fallback), so checkboxes complete tasks, recurrence spawns, and the per-host pill decorator applies for free. Header shows "Showing X of Y" + manual refresh (cross-tab lag workaround). Result-signature guard + once-per-button flag terminate the mount cycle; bt-query row checkboxes are subtracted from the pill-threshold count; full teardown in `__RecurringTasksCleanup`/onunload restores the hidden buttons. Setting `bt-query-component-enable` (default ON). **Deliberate deviation from the implementation plan:** mutation records inside `.bt-query-root` are *not* filtered from the observer — the completion pipeline must see checkbox flips inside rows; loop safety comes from the flag + signature instead.
+- ✅ **Datalog helpers:** `docs/query-cookbook.md` — bt-query syntax table, native `{{query}}` recipes with the attribute-row/breadcrumb caveat explained, six `:q` snippets (by-project, overdue, due-this-week, waiting-for, stalled-ish, completed-in-project) using the roamdocs `dnp/`/`ms/` additions, and a `roam/render` + `bt_search` appendix with a console-verifiable invocation. README gained a compact "Querying Better Tasks" section linking to it. ⚠️ The `:q` snippets were authored from the documented rule signatures — verify each in a live graph before announcing.
 - **Implementation notes (verified against roamdocs.fyi, 2026-07-10):**
   - No custom block-renderer registration exists in the Alpha API, so `{{bt-query}}` must use the detect-and-mount observer technique (the RoamJS Query Builder pattern). `roam/render` was evaluated and rejected: the component would live as user-editable code blocks in the graph, is gated behind a Roam setting, and its invocation syntax embeds a graph-specific uid. Document a minimal roam/render + `bt_search` recipe as a power-user option instead.
   - `ui.components.renderBlock` / `renderString` + `unmountNode` (documented in `.codex/roam_alpha_api_reference.md`, currently unused by BT) can render result rows as **native Roam block markup** — refs clickable, native checkbox, and the existing pill decorator should apply. Spike this before hand-rendering rows.
@@ -387,4 +387,4 @@ Was the top daily-use friction: the only way to delete a task used to be View �
 
 ---
 
-*Last updated: 2026-07-10 — Smart Suggestions shipped; Phase 11 (Next Dev Candidates) added*
+*Last updated: 2026-07-12 — Roam Query Integration implemented (pills in query results, page-ref writes, {{bt-query}} component, query cookbook); Phase 10 complete pending live-graph verification*

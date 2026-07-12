@@ -672,6 +672,38 @@ Notes:
 
 ---
 
+## 🔍 Querying Better Tasks
+
+Tasks are native Roam blocks with `[[page ref]]` metadata, so every Roam
+query surface can see them — plus a dedicated component for the common case:
+
+```
+{{bt-query: status="TODO" due="this-week" sort="due"}}
+```
+
+Type that in any block and Better Tasks mounts a live task list: native
+checkboxes (recurring tasks spawn their next occurrence on completion),
+inline pills, a result count and a refresh button. Filters: `status`,
+`project`, `due`, `completed`, `blocked`, `assignee`, `query` (free text),
+`limit`, `sort` — the same vocabulary as the `bt_search` API.
+
+More examples:
+
+```
+{{bt-query: due="overdue"}}
+{{bt-query: project=[[Website Refresh]] limit=10}}
+```
+
+Native `{{query}}` and Datalog work too — project, waiting-for and context
+values are written as `[[page links]]`, so
+`{{[[query]]: {and: [[TODO]] [[Website Refresh]] [[BT_attrProject]]}}}`
+finds tasks with zero extension involvement.
+
+📖 **Full guide with copy-paste Datalog snippets** (overdue, due this week,
+by project, waiting-for, stalled): [docs/query-cookbook.md](docs/query-cookbook.md)
+
+---
+
 ## ⚡ Performance notes
 
 Recent versions include memory and render optimisations.
