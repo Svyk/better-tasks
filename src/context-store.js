@@ -5,6 +5,7 @@ import {
   parseExcludedPicklistPages,
   shouldExcludePicklistSourcePage,
 } from "./picklist-excludes";
+import { splitRefAwareList } from "./core/page-refs";
 
 const ARCHIVED_CONTEXT_SETTING = "bt_archivedContexts";
 
@@ -162,16 +163,22 @@ async function queryContextFromGraph({ includeRegex = true } = {}) {
       .map((t) => t.trim())
       .filter(Boolean);
       const attrTitleSet = new Set([attrName, DEFAULT_CONTEXT_ATTR]);
-      const nonAttrRef = refTitles.find((title) => !attrTitleSet.has(title));
-    if (nonAttrRef) {
-      out.push(nonAttrRef);
-      continue;
-    }
+      // Context is multi-value: collect EVERY non-attribute ref, not just the
+      // first — `BT_attrContext:: [[Home]], [[Deep Work]]` refs both pages.
+      const nonAttrRefs = refTitles.filter((title) => !attrTitleSet.has(title));
+      if (nonAttrRefs.length) {
+        nonAttrRefs.forEach((title) => out.push(title));
+        continue;
+      }
       const parts = stringVal.split("::");
       if (parts.length >= 2) {
         const valuePart = parts.slice(1).join("::");
-        const normalized = normalizeContextValue(valuePart);
-        if (normalized) out.push(normalized);
+        // Ref-aware split: normalizing the whole comma-joined value mangles
+        // bracketed entries ("[[A]], [[B]]" → "A]], [[B").
+        splitRefAwareList(valuePart)
+          .map((token) => normalizeContextValue(token))
+          .filter(Boolean)
+          .forEach((v) => out.push(v));
       }
     }
     return out;

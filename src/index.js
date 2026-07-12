@@ -6090,7 +6090,8 @@ export default {
     function btQueryEnabled() {
       try {
         const val = extensionAPI.settings.get(BT_QUERY_ENABLE_SETTING);
-        return val !== false && val !== "false";
+        if (val == null) return true;
+        return normalizeBooleanSetting(val);
       } catch (_) {
         return true;
       }
@@ -7486,6 +7487,18 @@ export default {
       return getAttrMeta(type, attrNames)?.aliases || [];
     }
 
+    // Activity-log values must not embed [[page refs]]: the log is history,
+    // and refs in event text create permanent linked references on project /
+    // people / date pages from every recorded change.
+    function stripRefsForActivity(value) {
+      if (value == null) return null;
+      const s = String(value);
+      if (!s.includes("[[") && !s.trim().startsWith("#")) return s;
+      const tokens = splitRefAwareList(s);
+      if (!tokens.length) return s;
+      return tokens.map((token) => stripLinkOrTag(token)).join(", ");
+    }
+
     async function ensureChildAttrForType(uid, type, value, attrNames) {
       const order = getChildOrderForType(type);
       const result = await ensureChildAttr(uid, getAttrLabel(type, attrNames), value, order);
@@ -7501,8 +7514,8 @@ export default {
               const eventKind = ctx.eventKind || "attr_change";
               const details = {
                 field: type,
-                from: previousValue ? String(previousValue) : null,
-                to: newValue ? String(newValue) : null,
+                from: previousValue ? stripRefsForActivity(previousValue) : null,
+                to: newValue ? stripRefsForActivity(newValue) : null,
                 source: ctx.source || null,
                 bulkId: ctx.bulkId || null,
               };
@@ -7518,10 +7531,27 @@ export default {
     function pageRefWritesEnabled() {
       try {
         const val = extensionAPI.settings.get(PAGE_REF_WRITES_SETTING);
-        return val !== false && val !== "false";
+        if (val == null) return true;
+        return normalizeBooleanSetting(val);
       } catch (_) {
         return true;
       }
+    }
+
+    // Single formatting point for the three page-entity attributes so every
+    // write path (setRichAttribute, recurrence spawn carry-forward) honours
+    // the bt-page-ref-writes toggle identically.
+    function formatPageEntityValueForWrite(type, value) {
+      if (type === "context") {
+        const items = Array.isArray(value)
+          ? value
+          : splitRefAwareList(String(value ?? ""));
+        return pageRefWritesEnabled()
+          ? formatContextListForWrite(items)
+          : items.map((item) => stripLinkOrTag(String(item))).filter(Boolean).join(", ");
+      }
+      const v = typeof value === "string" ? value.trim() : "";
+      return pageRefWritesEnabled() ? wrapAsPageRef(v) : v;
     }
 
     async function setRichAttribute(uid, type, value, attrNames = resolveAttributeNames()) {
@@ -7586,14 +7616,15 @@ export default {
       // queries discover Better Tasks; option stores and readers keep working
       // on the stripped value (they all unwrap brackets).
       let storedValue = writeValue;
-      if (pageRefWritesEnabled()) {
-        if ((type === "project" || type === "waitingFor") && typeof writeValue === "string") {
-          storedValue = wrapAsPageRef(writeValue);
-        } else if (type === "context") {
-          storedValue = formatContextListForWrite(
-            Array.isArray(value) ? value : splitRefAwareList(String(writeValue))
-          );
+      if (type === "project" || type === "waitingFor") {
+        if (typeof writeValue === "string") {
+          storedValue = formatPageEntityValueForWrite(type, writeValue);
         }
+      } else if (type === "context") {
+        storedValue = formatPageEntityValueForWrite(
+          "context",
+          Array.isArray(value) ? value : String(writeValue)
+        );
       }
       await ensureChildAttrForType(uid, type, storedValue, attrNames);
       if (type === "project" && writeValue) {
@@ -7705,7 +7736,7 @@ export default {
           if (!ctx.suppressLogging) {
             void recordActivity(uid, ctx.eventKind || "attr_change", {
               field: type,
-              from: previousValue,
+              from: stripRefsForActivity(previousValue),
               to: null,
               source: ctx.source || null,
               bulkId: ctx.bulkId || null,
@@ -8782,9 +8813,9 @@ export default {
         // Carry forward rich metadata from previous occurrence
         const rm = meta.metadata;
         if (rm) {
-          if (rm.project) await ensureChildAttrForType(newUid, "project", normalizeProjectValue(rm.project), set.attrNames);
-          if (rm.waitingFor) await ensureChildAttrForType(newUid, "waitingFor", rm.waitingFor, set.attrNames);
-          if (Array.isArray(rm.context) && rm.context.length) await ensureChildAttrForType(newUid, "context", rm.context.join(", "), set.attrNames);
+          if (rm.project) await ensureChildAttrForType(newUid, "project", formatPageEntityValueForWrite("project", normalizeProjectValue(rm.project)), set.attrNames);
+          if (rm.waitingFor) await ensureChildAttrForType(newUid, "waitingFor", formatPageEntityValueForWrite("waitingFor", rm.waitingFor), set.attrNames);
+          if (Array.isArray(rm.context) && rm.context.length) await ensureChildAttrForType(newUid, "context", formatPageEntityValueForWrite("context", rm.context), set.attrNames);
           if (rm.priority) await ensureChildAttrForType(newUid, "priority", formatPriorityEnergyDisplay(rm.priority), set.attrNames);
           if (rm.energy) await ensureChildAttrForType(newUid, "energy", formatPriorityEnergyDisplay(rm.energy), set.attrNames);
           if (rm.gtd) await ensureChildAttrForType(newUid, "gtd", formatGtdStatusDisplay(rm.gtd), set.attrNames);
@@ -13295,7 +13326,8 @@ export default {
     function pillsInQueryResultsEnabled() {
       try {
         const val = extensionAPI.settings.get(PILLS_IN_QUERY_RESULTS_SETTING);
-        return val !== false && val !== "false";
+        if (val == null) return true;
+        return normalizeBooleanSetting(val);
       } catch (_) {
         return true;
       }
