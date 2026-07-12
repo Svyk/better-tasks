@@ -48,6 +48,8 @@ const locale = {
     pillsInQueryResultsDescription: "Affiche les pastilles sur chaque rendu d'une tâche — résultats de requêtes, intégrations, références liées — pas seulement le premier trouvé sur la page.",
     pageRefWrites: "Écrire Projet/En attente/Contexte comme liens de page",
     pageRefWritesDescription: "Stocke les valeurs de projet, en attente et contexte comme [[liens de page]] afin que les requêtes natives de Roam trouvent les Better Tasks. Crée des pages et des références liées pour ces valeurs. Les tâches existantes ne sont pas modifiées.",
+    btQueryEnable: "Listes de tâches {{bt-query}}",
+    btQueryEnableDescription: "Affiche des listes de résultats interactives Better Tasks dans les blocs contenant {{bt-query: ...}}. La désactivation restaure le bouton simple de Roam.",
     templates: "Modèles de tâches",
     templatesDescription: "Enregistrez des configurations de tâches comme modèles réutilisables avec des valeurs par défaut et une structure de sous-tâches.",
     manageTemplates: "Gérer les modèles",
@@ -839,6 +841,18 @@ const locale = {
     namePlaceholder: "Nom du modèle",
     titlePatternLabel: "Motif du titre",
     titlePatternPlaceholder: "Rapport hebdomadaire pour {project}"
+  },
+  btQuery: {
+    showingOf: "Affichage de {{returned}} sur {{count}}",
+    refresh: "Actualiser",
+    noResults: "Aucune tâche correspondante",
+    parseError: "bt-query : requête invalide",
+    unknownKey: "Clé inconnue « {{key}} »",
+    badValue: "Valeur invalide « {{value}} » pour {{key}}",
+    unterminated: "Valeur non terminée pour {{key}}",
+    syntaxError: "Erreur de syntaxe près de {{key}}",
+    keysHint: "Clés disponibles : {{keys}}",
+    loadError: "bt-query : échec du chargement des tâches"
   }
 };
 

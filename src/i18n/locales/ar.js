@@ -48,6 +48,8 @@ const locale = {
     pillsInQueryResultsDescription: "عرض الشارات في كل ظهور للمهمة — نتائج الاستعلام والتضمينات والمراجع المرتبطة — وليس فقط في أول ظهور في الصفحة.",
     pageRefWrites: "كتابة المشروع/قيد الانتظار/السياق كروابط صفحات",
     pageRefWritesDescription: "تخزين قيم المشروع وقيد الانتظار والسياق كـ [[روابط صفحات]] حتى تعثر استعلامات Roam الأصلية على مهام Better Tasks. يؤدي هذا إلى إنشاء صفحات ومراجع مرتبطة لتلك القيم. المهام الموجودة لا تتغير.",
+    btQueryEnable: "قوائم مهام {{bt-query}}",
+    btQueryEnableDescription: "عرض قوائم نتائج تفاعلية لـ Better Tasks في الكتل التي تحتوي على {{bt-query: ...}}. إيقاف هذا الخيار يعيد زر Roam العادي.",
     templates: "قوالب المهام",
     templatesDescription: "احفظ إعدادات المهام كقوالب قابلة لإعادة الاستخدام مع قيم بيانات وصفية افتراضية وبنية المهام الفرعية.",
     manageTemplates: "إدارة القوالب",
@@ -847,6 +849,18 @@ const locale = {
     namePlaceholder: "اسم القالب",
     titlePatternLabel: "نمط العنوان",
     titlePatternPlaceholder: "تقرير أسبوعي عن {project}"
+  },
+  btQuery: {
+    showingOf: "عرض {{returned}} من {{count}}",
+    refresh: "تحديث",
+    noResults: "لا توجد مهام مطابقة",
+    parseError: "bt-query: استعلام غير صالح",
+    unknownKey: "مفتاح غير معروف \"{{key}}\"",
+    badValue: "قيمة غير صالحة \"{{value}}\" للمفتاح {{key}}",
+    unterminated: "قيمة غير مغلقة للمفتاح {{key}}",
+    syntaxError: "خطأ في الصياغة قرب {{key}}",
+    keysHint: "المفاتيح المتاحة: {{keys}}",
+    loadError: "bt-query: فشل تحميل المهام"
   }
 };
 

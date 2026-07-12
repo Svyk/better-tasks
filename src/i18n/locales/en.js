@@ -48,6 +48,8 @@ const locale = {
     pillsInQueryResultsDescription: "Render pills on every rendering of a task — query results, embeds, linked references — not just the first one found on the page.",
     pageRefWrites: "Write Project/Waiting/Context as page links",
     pageRefWritesDescription: "Store project, waiting-for and context values as [[page links]] so native Roam queries find Better Tasks. Creates pages and linked references for those values. Existing tasks are untouched.",
+    btQueryEnable: "{{bt-query}} task lists",
+    btQueryEnableDescription: "Render interactive Better Tasks result lists in blocks containing {{bt-query: ...}}. Turning this off restores Roam's plain button.",
     templates: "Task Templates",
     templatesDescription: "Save task configurations as reusable templates with metadata defaults and subtask structures.",
     manageTemplates: "Manage templates",
@@ -839,6 +841,18 @@ const locale = {
     namePlaceholder: "Template name",
     titlePatternLabel: "Title pattern",
     titlePatternPlaceholder: "Weekly report for {project}"
+  },
+  btQuery: {
+    showingOf: "Showing {{returned}} of {{count}}",
+    refresh: "Refresh",
+    noResults: "No matching tasks",
+    parseError: "bt-query: invalid query",
+    unknownKey: "Unknown key \"{{key}}\"",
+    badValue: "Invalid value \"{{value}}\" for {{key}}",
+    unterminated: "Unterminated value for {{key}}",
+    syntaxError: "Syntax error near {{key}}",
+    keysHint: "Available keys: {{keys}}",
+    loadError: "bt-query: failed to load tasks"
   }
 };
 

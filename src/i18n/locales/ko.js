@@ -48,6 +48,8 @@ const locale = {
     pillsInQueryResultsDescription: "페이지에서 처음 발견된 항목뿐 아니라 작업이 표시되는 모든 위치(쿼리 결과, 임베드, 연결된 참조)에 필을 렌더링합니다.",
     pageRefWrites: "프로젝트/대기/컨텍스트를 페이지 링크로 저장",
     pageRefWritesDescription: "프로젝트, 대기, 컨텍스트 값을 [[페이지 링크]]로 저장하여 Roam 네이티브 쿼리가 Better Tasks를 찾을 수 있게 합니다. 해당 값에 대한 페이지와 연결된 참조가 생성됩니다. 기존 작업은 변경되지 않습니다.",
+    btQueryEnable: "{{bt-query}} 작업 목록",
+    btQueryEnableDescription: "{{bt-query: ...}}가 포함된 블록에 Better Tasks의 인터랙티브 결과 목록을 렌더링합니다. 끄면 Roam의 기본 버튼으로 돌아갑니다.",
     templates: "작업 템플릿",
     templatesDescription: "메타데이터 기본값과 하위 작업 구조가 포함된 재사용 가능한 템플릿으로 작업 구성을 저장합니다.",
     manageTemplates: "템플릿 관리",
@@ -839,6 +841,18 @@ const locale = {
     namePlaceholder: "템플릿 이름",
     titlePatternLabel: "제목 패턴",
     titlePatternPlaceholder: "{project}의 주간 보고서"
+  },
+  btQuery: {
+    showingOf: "{{count}}개 중 {{returned}}개 표시",
+    refresh: "새로 고침",
+    noResults: "일치하는 작업이 없습니다",
+    parseError: "bt-query: 잘못된 쿼리",
+    unknownKey: "알 수 없는 키 \"{{key}}\"",
+    badValue: "{{key}}의 값 \"{{value}}\"이(가) 잘못되었습니다",
+    unterminated: "{{key}}의 값이 닫히지 않았습니다",
+    syntaxError: "{{key}} 근처에 구문 오류",
+    keysHint: "사용 가능한 키: {{keys}}",
+    loadError: "bt-query: 작업을 불러오지 못했습니다"
   }
 };
 

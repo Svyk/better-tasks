@@ -48,6 +48,8 @@ const locale = {
     pillsInQueryResultsDescription: "Renderizza i badge su ogni visualizzazione di un'attività — risultati delle query, embed, riferimenti collegati — non solo sulla prima trovata nella pagina.",
     pageRefWrites: "Scrivi Progetto/In attesa/Contesto come link di pagina",
     pageRefWritesDescription: "Salva i valori di progetto, in attesa e contesto come [[link di pagina]] così le query native di Roam trovano le Better Tasks. Crea pagine e riferimenti collegati per quei valori. Le attività esistenti non vengono toccate.",
+    btQueryEnable: "Elenchi di attività {{bt-query}}",
+    btQueryEnableDescription: "Renderizza elenchi interattivi di risultati Better Tasks nei blocchi che contengono {{bt-query: ...}}. Disattivandolo torna il semplice pulsante di Roam.",
     templates: "Modelli di attività",
     templatesDescription: "Salva configurazioni di attività come modelli riutilizzabili con valori predefiniti e struttura di sottoattività.",
     manageTemplates: "Gestisci modelli",
@@ -839,6 +841,18 @@ const locale = {
     namePlaceholder: "Nome del modello",
     titlePatternLabel: "Schema del titolo",
     titlePatternPlaceholder: "Rapporto settimanale per {project}"
+  },
+  btQuery: {
+    showingOf: "Mostrando {{returned}} di {{count}}",
+    refresh: "Aggiorna",
+    noResults: "Nessuna attività corrispondente",
+    parseError: "bt-query: query non valida",
+    unknownKey: "Chiave sconosciuta “{{key}}”",
+    badValue: "Valore non valido “{{value}}” per {{key}}",
+    unterminated: "Valore non terminato per {{key}}",
+    syntaxError: "Errore di sintassi vicino a {{key}}",
+    keysHint: "Chiavi disponibili: {{keys}}",
+    loadError: "bt-query: caricamento delle attività non riuscito"
   }
 };
 

@@ -48,6 +48,8 @@ const locale = {
     pillsInQueryResultsDescription: "ページ内で最初に見つかったものだけでなく、タスクのすべての表示（クエリ結果、埋め込み、リンク参照）にピルを表示します。",
     pageRefWrites: "プロジェクト/待機/コンテキストをページリンクとして書き込む",
     pageRefWritesDescription: "プロジェクト、待機、コンテキストの値を[[ページリンク]]として保存し、Roamのネイティブクエリで Better Tasks を見つけられるようにします。それらの値のページとリンク参照が作成されます。既存のタスクは変更されません。",
+    btQueryEnable: "{{bt-query}} タスクリスト",
+    btQueryEnableDescription: "{{bt-query: ...}} を含むブロックに Better Tasks のインタラクティブな結果リストを表示します。オフにすると Roam の通常のボタンに戻ります。",
     templates: "タスクテンプレート",
     templatesDescription: "メタデータのデフォルトとサブタスク構造を含む、再利用可能なテンプレートとしてタスク設定を保存します。",
     manageTemplates: "テンプレートを管理",
@@ -839,6 +841,18 @@ const locale = {
     namePlaceholder: "テンプレート名",
     titlePatternLabel: "タイトルパターン",
     titlePatternPlaceholder: "{project} の週次レポート"
+  },
+  btQuery: {
+    showingOf: "{{count}} 件中 {{returned}} 件を表示",
+    refresh: "更新",
+    noResults: "一致するタスクはありません",
+    parseError: "bt-query: 無効なクエリ",
+    unknownKey: "不明なキー「{{key}}」",
+    badValue: "{{key}} の値「{{value}}」が無効です",
+    unterminated: "{{key}} の値が閉じられていません",
+    syntaxError: "{{key}} 付近に構文エラー",
+    keysHint: "使用可能なキー: {{keys}}",
+    loadError: "bt-query: タスクの読み込みに失敗しました"
   }
 };
 

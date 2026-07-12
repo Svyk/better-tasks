@@ -48,6 +48,8 @@ const locale = {
     pillsInQueryResultsDescription: "Pills bei jeder Darstellung einer Aufgabe rendern — Abfrageergebnisse, Einbettungen, verknüpfte Referenzen — nicht nur bei der ersten auf der Seite gefundenen.",
     pageRefWrites: "Projekt/Warten/Kontext als Seitenlinks schreiben",
     pageRefWritesDescription: "Projekt-, Warten- und Kontextwerte als [[Seitenlinks]] speichern, damit native Roam-Abfragen Better Tasks finden. Erstellt Seiten und verknüpfte Referenzen für diese Werte. Bestehende Aufgaben bleiben unverändert.",
+    btQueryEnable: "{{bt-query}}-Aufgabenlisten",
+    btQueryEnableDescription: "Interaktive Better-Tasks-Ergebnislisten in Blöcken mit {{bt-query: ...}} rendern. Beim Ausschalten erscheint wieder Roams einfacher Button.",
     templates: "Aufgabenvorlagen",
     templatesDescription: "Speichere Aufgabenkonfigurationen als wiederverwendbare Vorlagen mit Metadaten-Standards und Unteraufgabenstrukturen.",
     manageTemplates: "Vorlagen verwalten",
@@ -839,6 +841,18 @@ const locale = {
     namePlaceholder: "Vorlagenname",
     titlePatternLabel: "Titelmuster",
     titlePatternPlaceholder: "Wöchentlicher Bericht für {project}"
+  },
+  btQuery: {
+    showingOf: "Zeige {{returned}} von {{count}}",
+    refresh: "Aktualisieren",
+    noResults: "Keine passenden Aufgaben",
+    parseError: "bt-query: ungültige Abfrage",
+    unknownKey: "Unbekannter Schlüssel „{{key}}“",
+    badValue: "Ungültiger Wert „{{value}}“ für {{key}}",
+    unterminated: "Nicht abgeschlossener Wert für {{key}}",
+    syntaxError: "Syntaxfehler bei {{key}}",
+    keysHint: "Verfügbare Schlüssel: {{keys}}",
+    loadError: "bt-query: Aufgaben konnten nicht geladen werden"
   }
 };
 

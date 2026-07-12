@@ -87,6 +87,7 @@ import {
   splitRefAwareList,
   formatContextListForWrite,
 } from "./core/page-refs";
+import { parseBtQuery, KNOWN_KEYS as BT_QUERY_KNOWN_KEYS } from "./core/bt-query-parser";
 import {
   normalizePulledSubtree,
   flattenSubtreeToCreateSteps,
@@ -266,6 +267,7 @@ const PILL_THRESHOLD_SETTING = "bt-pill-checkbox-threshold";
 const DEFAULT_PILL_THRESHOLD = 100; // skip pill rendering when too many checkboxes are present
 const PILLS_IN_QUERY_RESULTS_SETTING = "bt-pills-in-query-results";
 const PAGE_REF_WRITES_SETTING = "bt-page-ref-writes";
+const BT_QUERY_ENABLE_SETTING = "bt-query-component-enable";
 const SUPPORTED_LANGUAGES = Object.keys(I18N_MAP || { en: {} });
 const EN_STRING_PATH_MAP = new Map();
 let currentLanguage = "en";
@@ -619,6 +621,15 @@ export default {
           description: tr(
             "settings.pageRefWritesDescription",
             "Store project, waiting-for and context values as [[page links]] so native Roam queries find Better Tasks. Creates pages and linked references for those values. Existing tasks are untouched."
+          ),
+          action: { type: "switch" },
+        },
+        {
+          id: BT_QUERY_ENABLE_SETTING,
+          name: tr("settings.btQueryEnable", "{{bt-query}} task lists"),
+          description: tr(
+            "settings.btQueryEnableDescription",
+            "Render interactive Better Tasks result lists in blocks containing {{bt-query: ...}}. Turning this off restores Roam's plain button."
           ),
           action: { type: "switch" },
         },
@@ -1374,6 +1385,9 @@ export default {
     }
     if (extensionAPI.settings.get(PAGE_REF_WRITES_SETTING) == null) {
       extensionAPI.settings.set(PAGE_REF_WRITES_SETTING, true);
+    }
+    if (extensionAPI.settings.get(BT_QUERY_ENABLE_SETTING) == null) {
+      extensionAPI.settings.set(BT_QUERY_ENABLE_SETTING, true);
     }
     if (extensionAPI.settings.get(ACTIVITY_LOG_TEXT_EDITS_SETTING) == null) {
       extensionAPI.settings.set(ACTIVITY_LOG_TEXT_EDITS_SETTING, false);
@@ -3538,6 +3552,7 @@ export default {
         document.removeEventListener("keydown", _onCmdEnterKey, true);
         detachPillEventDelegation();
         clearAllPills();
+        teardownBtQueryMounts();
         disconnectObserver();
       };
     }
@@ -3687,7 +3702,12 @@ export default {
           }
         }
         // Batch refresh pills once per mutation batch instead of per node to reduce churn.
-        if (shouldBatchRefreshPills) schedulePillRefreshAll(120);
+        if (shouldBatchRefreshPills) {
+          schedulePillRefreshAll(120);
+          // New/changed block DOM is also when {{bt-query}} buttons appear
+          // and when mounted result lists may need a live update.
+          scheduleBtQueryScan(180);
+        }
 
         sweepCompletionPairs();
         sweepProcessed();
@@ -3721,6 +3741,7 @@ export default {
       const surface = lastAttrSurface || enforceChildAttrSurface(extensionAPI);
       lastAttrSurface = surface;
       void syncPillsForSurface(surface);
+      scheduleBtQueryScan(400);
     }
 
     async function processTaskCompletion(uid, options = {}) {
@@ -6044,6 +6065,385 @@ export default {
         count: summaries.length,
         returned: out.length,
       };
+    }
+
+    // ==================== {{bt-query}} component ====================
+    // The Alpha API has no block-renderer registration, so this uses the
+    // detect-and-mount technique: Roam renders {{bt-query: ...}} as a plain
+    // button labelled "bt-query" (the text before the colon); we find those
+    // buttons, read the source block string, parse it with the pure core
+    // parser, and mount a result list powered by the same engine as
+    // bt_search. Rows are native Roam blocks via ui.components.renderBlock
+    // (feature-detected, renderString/plain-text fallback), so checkboxes,
+    // refs and the inline pill decorator work unmodified.
+    //
+    // Loop safety: mounts fire once per button (data-bt-query-mounted), and
+    // rescans skip re-render when the result signature is unchanged. The
+    // mutation records our own mounts generate are NOT filtered out — the
+    // completion pipeline must still see checkbox flips inside rows — the
+    // flag + signature are what terminate the cycle.
+
+    const btQueryMounts = new Map(); // container -> {uid, host, btn, rowHosts, signature, parsed, rendering}
+    let btQueryScanTimer = null;
+    let btQueryScanRunning = false;
+
+    function btQueryEnabled() {
+      try {
+        const val = extensionAPI.settings.get(BT_QUERY_ENABLE_SETTING);
+        return val !== false && val !== "false";
+      } catch (_) {
+        return true;
+      }
+    }
+
+    function scheduleBtQueryScan(delayMs = 150) {
+      if (typeof document === "undefined") return;
+      if (btQueryScanTimer) clearTimeout(btQueryScanTimer);
+      btQueryScanTimer = setTimeout(() => {
+        btQueryScanTimer = null;
+        void scanBtQueryBlocks();
+      }, delayMs);
+    }
+
+    function unmountBtQueryRows(entry) {
+      const unmount = window.roamAlphaAPI?.ui?.components?.unmountNode;
+      for (const rowHost of entry?.rowHosts || []) {
+        try {
+          if (typeof unmount === "function") unmount({ el: rowHost });
+        } catch (_) { /* ignore */ }
+      }
+      if (entry) entry.rowHosts = [];
+    }
+
+    function unmountBtQueryEntry(container, entry) {
+      unmountBtQueryRows(entry);
+      if (entry?.btn?.isConnected) {
+        try {
+          entry.btn.style.removeProperty("display");
+          delete entry.btn.dataset.btQueryMounted;
+        } catch (_) { /* ignore */ }
+      }
+      try {
+        container.remove();
+      } catch (_) { /* ignore */ }
+      btQueryMounts.delete(container);
+    }
+
+    function teardownBtQueryMounts() {
+      if (btQueryScanTimer) {
+        clearTimeout(btQueryScanTimer);
+        btQueryScanTimer = null;
+      }
+      for (const [container, entry] of Array.from(btQueryMounts.entries())) {
+        unmountBtQueryEntry(container, entry);
+      }
+      btQueryMounts.clear();
+      try {
+        const style = document.getElementById("bt-query-style");
+        if (style?.parentNode) style.parentNode.removeChild(style);
+      } catch (_) { /* ignore */ }
+    }
+
+    async function scanBtQueryBlocks() {
+      if (btQueryScanRunning || typeof document === "undefined") return;
+      btQueryScanRunning = true;
+      try {
+        // Sweep mounts whose container Roam destroyed (block edited/deleted,
+        // navigation) so the reappearing button gets a fresh mount.
+        for (const [container, entry] of Array.from(btQueryMounts.entries())) {
+          if (!container.isConnected) unmountBtQueryEntry(container, entry);
+        }
+        if (!btQueryEnabled()) {
+          teardownBtQueryMounts();
+          return;
+        }
+        const buttons = document.querySelectorAll("button.bp3-button:not([data-bt-query-mounted])");
+        for (const btn of buttons) {
+          const label = (btn.textContent || "").trim().toLowerCase();
+          if (label !== "bt-query") continue;
+          if (btn.closest(".rm-code-block")) continue;
+          if (btn.closest(".bt-query-root")) continue; // never inside our own rows
+          const host = btn.closest(".rm-block-main") || btn.closest(".roam-block");
+          if (!host) continue;
+          if (Array.from(btQueryMounts.values()).some((e) => e.host === host)) {
+            // One mount per block; extra invocations in the same block stay inert.
+            btn.dataset.btQueryMounted = "1";
+            continue;
+          }
+          const uid = findBlockUidFromElement(host) || findBlockUidFromElement(btn);
+          if (!uid) continue;
+          const block = await getBlock(uid);
+          const parsed = parseBtQuery(block?.string || "");
+          if (!parsed.isBtQuery) continue;
+          mountBtQuery(host, btn, uid, parsed);
+        }
+        // Live update: re-render mounted entries whose results changed
+        // (signature check inside renderBtQuery makes this a no-op otherwise).
+        for (const [container, entry] of Array.from(btQueryMounts.entries())) {
+          if (container.isConnected && !entry.parsed.errors?.length) {
+            void renderBtQuery(container, entry);
+          }
+        }
+      } catch (err) {
+        if (window.__btDebug) console.warn("[BetterTasks] bt-query scan failed", err);
+      } finally {
+        btQueryScanRunning = false;
+      }
+    }
+
+    function ensureBtQueryStyles() {
+      if (typeof document === "undefined" || document.getElementById("bt-query-style")) return;
+      const style = document.createElement("style");
+      style.id = "bt-query-style";
+      style.textContent = `
+        .bt-query-root {
+          margin: 4px 0 2px;
+          padding: 6px 8px;
+          border: 1px solid var(--bt-border, rgba(0,0,0,0.15));
+          border-radius: 8px;
+          background: var(--bt-panel-bg, rgba(0,0,0,0.02));
+        }
+        .bt-query-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          margin-bottom: 4px;
+          font-size: 12px;
+          opacity: 0.78;
+        }
+        .bt-query-refresh {
+          border: 1px solid var(--bt-border, rgba(0,0,0,0.22));
+          border-radius: 6px;
+          background: var(--bt-panel-bg, #fff);
+          color: var(--bt-panel-text, inherit);
+          padding: 0 6px;
+          cursor: pointer;
+          line-height: 1.5;
+        }
+        .bt-query-refresh:hover {
+          opacity: 0.8;
+        }
+        .bt-query-list {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+        .bt-query-row-fallback {
+          padding: 2px 4px;
+        }
+        .bt-query-empty {
+          font-style: italic;
+          opacity: 0.65;
+          padding: 2px 4px;
+        }
+        .bt-query-error {
+          border: 1px solid rgba(217,130,43,0.5);
+          border-radius: 6px;
+          padding: 6px 8px;
+          background: rgba(217,130,43,0.08);
+        }
+        .bt-query-error-title {
+          font-weight: 600;
+          margin-bottom: 2px;
+        }
+        .bt-query-error-line {
+          font-size: 12px;
+        }
+        .bt-query-error-hint {
+          font-size: 12px;
+          opacity: 0.7;
+          margin-top: 4px;
+          font-style: italic;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    function mountBtQuery(host, btn, uid, parsed) {
+      try {
+        ensureBtQueryStyles();
+        btn.dataset.btQueryMounted = "1";
+        btn.style.display = "none";
+        const container = document.createElement("div");
+        container.className = "bt-query-root";
+        container.dataset.btQueryUid = uid;
+        host.appendChild(container);
+        const entry = { uid, host, btn, rowHosts: [], signature: null, parsed, rendering: false };
+        btQueryMounts.set(container, entry);
+        void renderBtQuery(container, entry, { force: true });
+      } catch (err) {
+        if (window.__btDebug) console.warn("[BetterTasks] bt-query mount failed", err);
+      }
+    }
+
+    async function runBtQueryEngine(parsed) {
+      const args = { ...parsed.filters, max_results: parsed.limit || 20 };
+      // Component default is open tasks; status="all" removes the filter.
+      if (!args.status) args.status = "TODO";
+      else if (args.status === "all") delete args.status;
+      const result = await executeToolSearch(args);
+      let tasks = Array.isArray(result?.tasks) ? result.tasks : [];
+      if (parsed.sort === "due") {
+        tasks = [...tasks].sort((a, b) => {
+          const ia = roamDateToISO(a.due);
+          const ib = roamDateToISO(b.due);
+          if (ia && ib) return ia < ib ? -1 : ia > ib ? 1 : 0;
+          if (ia) return -1;
+          if (ib) return 1;
+          return 0;
+        });
+      }
+      return { tasks, count: result?.count ?? tasks.length };
+    }
+
+    function btQueryText(key, lang, fallback, replacements) {
+      let s = t(["btQuery", key], lang) || fallback;
+      if (replacements) {
+        for (const [name, value] of Object.entries(replacements)) {
+          s = s.replace(`{{${name}}}`, String(value));
+        }
+      }
+      return s;
+    }
+
+    function renderBtQueryErrors(container, entry, lang) {
+      unmountBtQueryRows(entry);
+      container.innerHTML = "";
+      const card = document.createElement("div");
+      card.className = "bt-query-error";
+      const title = document.createElement("div");
+      title.className = "bt-query-error-title";
+      title.textContent = btQueryText("parseError", lang, "bt-query: invalid query");
+      card.appendChild(title);
+      for (const err of entry.parsed.errors || []) {
+        const line = document.createElement("div");
+        line.className = "bt-query-error-line";
+        if (err.code === "unknownKey") {
+          line.textContent = btQueryText("unknownKey", lang, 'Unknown key "{{key}}"', { key: err.key || "" });
+        } else if (err.code === "badValue") {
+          line.textContent = btQueryText("badValue", lang, 'Invalid value "{{value}}" for {{key}}', {
+            key: err.key || "",
+            value: err.value || "",
+          });
+        } else if (err.code === "unterminated") {
+          line.textContent = btQueryText("unterminated", lang, "Unterminated value for {{key}}", { key: err.key || "" });
+        } else {
+          line.textContent = btQueryText("syntaxError", lang, "Syntax error near {{key}}", { key: err.key || err.value || "" });
+        }
+        card.appendChild(line);
+      }
+      const hint = document.createElement("div");
+      hint.className = "bt-query-error-hint";
+      hint.textContent = btQueryText("keysHint", lang, "Available keys: {{keys}}", {
+        keys: BT_QUERY_KNOWN_KEYS.join(", "),
+      });
+      card.appendChild(hint);
+      container.appendChild(card);
+    }
+
+    function renderBtQueryFallbackRow(row, task) {
+      row.classList.add("bt-query-row-fallback");
+      const text = typeof task.text === "string" ? task.text : "";
+      const stripped = text.replace(/\{\{\[\[(TODO|DONE)\]\]\}\}\s*/g, "").trim();
+      const renderString = window.roamAlphaAPI?.ui?.components?.renderString;
+      if (typeof renderString === "function") {
+        try {
+          void renderString({ string: stripped, el: row });
+          return true; // mounted a React root — caller must track for unmount
+        } catch (_) { /* fall through */ }
+      }
+      row.textContent = stripped;
+      return false;
+    }
+
+    async function renderBtQuery(container, entry, options = {}) {
+      if (!container.isConnected || entry.rendering) return;
+      entry.rendering = true;
+      try {
+        const lang = getLanguageSetting();
+        if (entry.parsed.errors?.length) {
+          entry.signature = null;
+          renderBtQueryErrors(container, entry, lang);
+          return;
+        }
+        let result;
+        try {
+          result = await runBtQueryEngine(entry.parsed);
+        } catch (err) {
+          if (window.__btDebug) console.warn("[BetterTasks] bt-query run failed", err);
+          container.innerHTML = "";
+          const errEl = document.createElement("div");
+          errEl.className = "bt-query-error";
+          errEl.textContent = btQueryText("loadError", lang, "bt-query: failed to load tasks");
+          container.appendChild(errEl);
+          return;
+        }
+        if (!container.isConnected) return;
+        const signature =
+          result.tasks.map((task) => `${task.uid}:${task.status}`).join("|") + `#${result.count}`;
+        if (!options.force && entry.signature === signature) return;
+        entry.signature = signature;
+
+        unmountBtQueryRows(entry);
+        container.innerHTML = "";
+
+        const header = document.createElement("div");
+        header.className = "bt-query-header";
+        const count = document.createElement("span");
+        count.className = "bt-query-count";
+        count.textContent = btQueryText("showingOf", lang, "Showing {{returned}} of {{count}}", {
+          returned: result.tasks.length,
+          count: result.count,
+        });
+        header.appendChild(count);
+        const refreshBtn = document.createElement("button");
+        refreshBtn.className = "bt-query-refresh";
+        refreshBtn.type = "button";
+        refreshBtn.textContent = "↻";
+        refreshBtn.title = btQueryText("refresh", lang, "Refresh");
+        refreshBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          try {
+            dashboardTaskCache.clear();
+          } catch (_) { /* ignore */ }
+          void renderBtQuery(container, entry, { force: true });
+        });
+        header.appendChild(refreshBtn);
+        container.appendChild(header);
+
+        if (!result.tasks.length) {
+          const empty = document.createElement("div");
+          empty.className = "bt-query-empty";
+          empty.textContent = btQueryText("noResults", lang, "No matching tasks");
+          container.appendChild(empty);
+          return;
+        }
+
+        const list = document.createElement("div");
+        list.className = "bt-query-list";
+        container.appendChild(list);
+        const renderBlock = window.roamAlphaAPI?.ui?.components?.renderBlock;
+        for (const task of result.tasks) {
+          const row = document.createElement("div");
+          row.className = "bt-query-row";
+          list.appendChild(row);
+          if (typeof renderBlock === "function") {
+            try {
+              void renderBlock({ uid: task.uid, el: row, "open?": false });
+              entry.rowHosts.push(row);
+              continue;
+            } catch (_) { /* fall through to fallback */ }
+          }
+          if (renderBtQueryFallbackRow(row, task)) entry.rowHosts.push(row);
+        }
+        // Freshly-mounted rows are real block DOM — let the per-host pill
+        // decorator pick them up.
+        schedulePillRefreshAll(200);
+      } finally {
+        entry.rendering = false;
+      }
     }
 
     function countProjectTasks(tasks, projectName) {
@@ -12995,7 +13395,13 @@ export default {
           const hasFreshCheckboxCount = !!(canUseGlobalCheckboxCount && hasFreshCounts);
           const checkboxCount = hasFreshCheckboxCount
             ? (typeof globalCheckboxCount === "number" ? globalCheckboxCount : 0)
-            : (checkboxRoot.querySelectorAll?.(".rm-checkbox")?.length || 0);
+            : Math.max(
+                0,
+                (checkboxRoot.querySelectorAll?.(".rm-checkbox")?.length || 0) -
+                  // bt-query result rows carry real checkboxes; they must not
+                  // push the page over the pill threshold.
+                  (checkboxRoot.querySelectorAll?.(".bt-query-root .rm-checkbox")?.length || 0)
+              );
           globalCheckboxCount = checkboxCount;
           if (checkboxCount > checkboxThreshold) {
             /*
@@ -18809,6 +19215,14 @@ export default {
         // serving pill menus after a reload/update; the next instance
         // re-decorates immediately.
         document.querySelectorAll(".rt-pill-wrap").forEach((el) => el.remove());
+        // Defensive orphan sweep: __RecurringTasksCleanup already unmounted
+        // bt-query components; anything left is a container whose React
+        // roots died with the instance. The hidden source buttons come back.
+        document.querySelectorAll(".bt-query-root").forEach((el) => el.remove());
+        document.querySelectorAll("button.bp3-button[data-bt-query-mounted]").forEach((btn) => {
+          btn.style.removeProperty("display");
+          btn.removeAttribute("data-bt-query-mounted");
+        });
       } catch (_) {
         // ignore DOM cleanup errors
       }

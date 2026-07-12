@@ -48,6 +48,8 @@ const locale = {
     pillsInQueryResultsDescription: "Renderiza las píldoras en cada representación de una tarea — resultados de consultas, incrustaciones, referencias vinculadas — no solo en la primera encontrada en la página.",
     pageRefWrites: "Escribir Proyecto/Esperando/Contexto como enlaces de página",
     pageRefWritesDescription: "Guarda los valores de proyecto, esperando y contexto como [[enlaces de página]] para que las consultas nativas de Roam encuentren las Better Tasks. Crea páginas y referencias vinculadas para esos valores. Las tareas existentes no se modifican.",
+    btQueryEnable: "Listas de tareas {{bt-query}}",
+    btQueryEnableDescription: "Renderiza listas interactivas de resultados de Better Tasks en bloques que contienen {{bt-query: ...}}. Al desactivarlo se restaura el botón simple de Roam.",
     templates: "Plantillas de tareas",
     templatesDescription: "Guarda configuraciones de tareas como plantillas reutilizables con metadatos predeterminados y estructura de subtareas.",
     manageTemplates: "Administrar plantillas",
@@ -839,6 +841,18 @@ const locale = {
     namePlaceholder: "Nombre de la plantilla",
     titlePatternLabel: "Patrón del título",
     titlePatternPlaceholder: "Informe semanal para {project}"
+  },
+  btQuery: {
+    showingOf: "Mostrando {{returned}} de {{count}}",
+    refresh: "Actualizar",
+    noResults: "No hay tareas coincidentes",
+    parseError: "bt-query: consulta no válida",
+    unknownKey: "Clave desconocida «{{key}}»",
+    badValue: "Valor no válido «{{value}}» para {{key}}",
+    unterminated: "Valor sin cerrar para {{key}}",
+    syntaxError: "Error de sintaxis cerca de {{key}}",
+    keysHint: "Claves disponibles: {{keys}}",
+    loadError: "bt-query: no se pudieron cargar las tareas"
   }
 };
 

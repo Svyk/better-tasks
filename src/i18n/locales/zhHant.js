@@ -48,6 +48,8 @@ const locale = {
     pillsInQueryResultsDescription: "在任務的每個呈現位置（查詢結果、嵌入、連結引用）都渲染標籤，而不只是頁面上找到的第一個。",
     pageRefWrites: "將專案/等待/情境寫為頁面連結",
     pageRefWritesDescription: "將專案、等待和情境的值儲存為[[頁面連結]]，使 Roam 原生查詢能找到 Better Tasks。會為這些值建立頁面和連結引用。現有任務不受影響。",
+    btQueryEnable: "{{bt-query}} 任務清單",
+    btQueryEnableDescription: "在包含 {{bt-query: ...}} 的區塊中渲染 Better Tasks 互動式結果清單。關閉後恢復 Roam 的一般按鈕。",
     templates: "任務範本",
     templatesDescription: "將任務設定儲存為可重複使用的範本，包含中繼資料預設值和子任務結構。",
     manageTemplates: "管理範本",
@@ -839,6 +841,18 @@ const locale = {
     namePlaceholder: "範本名稱",
     titlePatternLabel: "標題模式",
     titlePatternPlaceholder: "{project} 的週報"
+  },
+  btQuery: {
+    showingOf: "顯示 {{returned}} / {{count}} 項",
+    refresh: "重新整理",
+    noResults: "沒有符合的任務",
+    parseError: "bt-query：無效查詢",
+    unknownKey: "未知鍵「{{key}}」",
+    badValue: "{{key}} 的值「{{value}}」無效",
+    unterminated: "{{key}} 的值未閉合",
+    syntaxError: "{{key}} 附近有語法錯誤",
+    keysHint: "可用鍵：{{keys}}",
+    loadError: "bt-query：載入任務失敗"
   }
 };
 

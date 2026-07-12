@@ -48,6 +48,8 @@ const locale = {
     pillsInQueryResultsDescription: "Renderiza as pastilhas em cada representação de uma tarefa — resultados de consultas, incorporações, referências ligadas — não apenas na primeira encontrada na página.",
     pageRefWrites: "Gravar Projeto/Espera/Contexto como ligações de página",
     pageRefWritesDescription: "Armazena os valores de projeto, espera e contexto como [[ligações de página]] para que as consultas nativas do Roam encontrem as Better Tasks. Cria páginas e referências ligadas para esses valores. As tarefas existentes não são alteradas.",
+    btQueryEnable: "Listas de tarefas {{bt-query}}",
+    btQueryEnableDescription: "Renderiza listas interativas de resultados do Better Tasks em blocos que contêm {{bt-query: ...}}. Desativar repõe o botão simples do Roam.",
     templates: "Modelos de tarefas",
     templatesDescription: "Guarda configurações de tarefas como modelos reutilizáveis com metadados predefinidos e estrutura de subtarefas.",
     manageTemplates: "Gerir modelos",
@@ -839,6 +841,18 @@ const locale = {
     namePlaceholder: "Nome do modelo",
     titlePatternLabel: "Padrão do título",
     titlePatternPlaceholder: "Relatório semanal para {project}"
+  },
+  btQuery: {
+    showingOf: "A mostrar {{returned}} de {{count}}",
+    refresh: "Atualizar",
+    noResults: "Nenhuma tarefa correspondente",
+    parseError: "bt-query: consulta inválida",
+    unknownKey: "Chave desconhecida \"{{key}}\"",
+    badValue: "Valor inválido \"{{value}}\" para {{key}}",
+    unterminated: "Valor por terminar para {{key}}",
+    syntaxError: "Erro de sintaxe perto de {{key}}",
+    keysHint: "Chaves disponíveis: {{keys}}",
+    loadError: "bt-query: falha ao carregar as tarefas"
   }
 };
 
