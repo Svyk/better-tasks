@@ -133,33 +133,45 @@ additions are documented at
 <https://roamdocs.fyi/help/roam-specific-q-additions.md> (they are not in the
 core Datascript docs). Type each snippet into a block starting with `:q`.
 
+> **Keep each query on ONE line.** Roam splits a multi-line paste into
+> separate blocks, which leaves the `:q` block holding only the first line —
+> it then reports *"Invalid query. Please make sure you're either passing a
+> query vector or a ref to a block with it"*. Datalog ignores whitespace, so
+> the one-liners below are the whole query. (If you want a query formatted
+> across lines for readability, paste it into a child block and reference it:
+> `:q ((block-uid))`.)
+
 > **Verify in your graph first.** The `dnp/` and `ms/` symbols are Roam
 > features that evolve; if a snippet returns nothing, check the roamdocs page
 > for the current symbol names.
 
-### Tasks in a project (task rows, not attribute rows)
+Every snippet joins **child → parent**: it matches the attribute child block
+and returns the **task** block. That join is what native `{{query}}` can't
+express. All of them only find tasks whose attribute values are page refs —
+tasks last written before the page-ref release still hold plain text and will
+not match until re-saved.
+
+Two conventions in every snippet below, both learned the hard way:
+
+- **Narrowest clause first.** Leading with `(refs-page "TODO" ?task)` binds
+  every TODO block in the graph before anything narrows it; on a large graph
+  the query exceeds Roam's `:q` timeout and reports **"No results"** — a
+  passing-looking failure. Start from the attribute child (there are few of
+  them), then join up to the task.
+- **Bind values, don't `pull`.** A `(pull ?task [...])` in `:find` renders as
+  `[object Object]` in the `:q` results table. Bind `?s` (the block string)
+  and `?uid` instead.
+
+### Tasks in a project
 
 ```
-:q [:find (pull ?task [:block/uid :block/string])
-    :where
-    (refs-page "TODO" ?task)
-    [?task :block/children ?child]
-    (refs-page "BT_attrProject" ?child)
-    (refs-page "Website Refresh" ?child)]
+:q [:find ?s :where (refs-page "BT_attrProject" ?c) (refs-page "Website Refresh" ?c) [?t :block/children ?c] (refs-page "TODO" ?t) [?t :block/string ?s]]
 ```
-
-The explicit child→parent join is what native `{{query}}` can't express —
-you get the **task block** itself.
 
 ### Overdue (due on or before today)
 
 ```
-:q [:find (pull ?task [:block/uid :block/string])
-    :where
-    (refs-page "TODO" ?task)
-    [?task :block/children ?child]
-    (refs-page "BT_attrDue" ?child)
-    (refs-dnp-between "January 1st, 2020" dnp/today ?child)]
+:q [:find ?s :where (refs-page "BT_attrDue" ?c) (refs-dnp-between "January 1st, 2020" dnp/today ?c) [?t :block/children ?c] (refs-page "TODO" ?t) [?t :block/string ?s]]
 ```
 
 The window includes tasks due *today*; Better Tasks itself treats those as
@@ -168,12 +180,7 @@ The window includes tasks due *today*; Better Tasks itself treats those as
 ### Due this week
 
 ```
-:q [:find (pull ?task [:block/uid :block/string])
-    :where
-    (refs-page "TODO" ?task)
-    [?task :block/children ?child]
-    (refs-page "BT_attrDue" ?child)
-    (refs-dnp-between dnp/this-week-start dnp/this-week-end ?child)]
+:q [:find ?s :where (refs-page "BT_attrDue" ?c) (refs-dnp-between dnp/this-week-start dnp/this-week-end ?c) [?t :block/children ?c] (refs-page "TODO" ?t) [?t :block/string ?s]]
 ```
 
 Respects Roam's week-start; Better Tasks has its own first-day-of-week
@@ -182,39 +189,31 @@ setting for its UI, so the two can differ by design.
 ### Waiting on a person
 
 ```
-:q [:find (pull ?task [:block/uid :block/string])
-    :where
-    (refs-page "TODO" ?task)
-    [?task :block/children ?child]
-    (refs-page "BT_attrWaitingFor" ?child)
-    (refs-page "Alex" ?child)]
+:q [:find ?s :where (refs-page "BT_attrWaitingFor" ?c) (refs-page "Alex" ?c) [?t :block/children ?c] (refs-page "TODO" ?t) [?t :block/string ?s]]
 ```
 
 ### Stalled-ish: open tasks created more than 14 days ago
 
 ```
-:q [:find (pull ?task [:block/uid :block/string])
-    :where
-    (refs-page "TODO" ?task)
-    [?task :block/children ?child]
-    (refs-page "BT_attrDue" ?child)
-    (created-between ms/-365D-start ms/-14D-start ?task)]
+:q [:find ?s :where (refs-page "BT_attrDue" ?c) [?t :block/children ?c] (refs-page "TODO" ?t) (created-between ms/-365D-start ms/-14D-start ?t) [?t :block/string ?s]]
 ```
 
 This approximates by *creation* time. The dashboard's Stalled filter uses
-*last edit* time (`:edit/time`), which Datalog can also reach — but the
-dashboard filter (or `{{bt-query}}` + the Stalled chip) is the more accurate
-tool for this job.
+*last edit* time (`:edit/time`) — the dashboard filter (or `{{bt-query}}`
+plus the Stalled chip) is the more accurate tool for this job.
 
 ### Completed in a project (audit trail)
 
 ```
-:q [:find (pull ?task [:block/uid :block/string])
-    :where
-    (refs-page "DONE" ?task)
-    [?task :block/children ?child]
-    (refs-page "BT_attrProject" ?child)
-    (refs-page "Website Refresh" ?child)]
+:q [:find ?s :where (refs-page "BT_attrProject" ?c) (refs-page "Website Refresh" ?c) [?t :block/children ?c] (refs-page "DONE" ?t) [?t :block/string ?s]]
+```
+
+### Want the block uid too?
+
+Add it to the find spec — handy for building block refs from results:
+
+```
+:q [:find ?uid ?s :where (refs-page "BT_attrProject" ?c) (refs-page "Website Refresh" ?c) [?t :block/children ?c] (refs-page "TODO" ?t) [?t :block/uid ?uid] [?t :block/string ?s]]
 ```
 
 ---
