@@ -268,6 +268,8 @@ const DEFAULT_PILL_THRESHOLD = 100; // skip pill rendering when too many checkbo
 const PILLS_IN_QUERY_RESULTS_SETTING = "bt-pills-in-query-results";
 const PAGE_REF_WRITES_SETTING = "bt-page-ref-writes";
 const BT_QUERY_ENABLE_SETTING = "bt-query-component-enable";
+const REVIEW_STEPS_SHOW_SETTING = "bt-review-steps-show";
+const SUGGESTION_RULES_SHOW_SETTING = "bt-suggestion-rules-show";
 const SUPPORTED_LANGUAGES = Object.keys(I18N_MAP || { en: {} });
 const EN_STRING_PATH_MAP = new Map();
 let currentLanguage = "en";
@@ -520,6 +522,21 @@ export default {
         overrides.advancedDashboardEnabled !== undefined
           ? normalizeBooleanSetting(overrides.advancedDashboardEnabled)
           : normalizeBooleanSetting(extensionAPI?.settings?.get?.(ADV_DASH_OPTIONS_SETTING));
+      // Sub-gates inside Advanced: the review steps (13 rows) and the suggestion
+      // rules (6) are the two remaining walls, so each folds behind its own
+      // switch — same treatment attribute names already gets.
+      const reviewStepsShown =
+        overrides.reviewStepsShown !== undefined
+          ? normalizeBooleanSetting(overrides.reviewStepsShown)
+          : normalizeBooleanSetting(extensionAPI?.settings?.get?.(REVIEW_STEPS_SHOW_SETTING));
+      const suggestionRulesShown =
+        overrides.suggestionRulesShown !== undefined
+          ? normalizeBooleanSetting(overrides.suggestionRulesShown)
+          : normalizeBooleanSetting(extensionAPI?.settings?.get?.(SUGGESTION_RULES_SHOW_SETTING));
+      const suggestionsMasterOn = (() => {
+        const v = extensionAPI?.settings?.get?.(SUGGESTIONS_ENABLED_SETTING);
+        return v !== false && v !== "false";
+      })();
       const destination =
         overrides.destination !== undefined
           ? overrides.destination
@@ -800,6 +817,13 @@ export default {
             },
           },
         },
+      ];
+
+      // Deliberately NOT inside the review group: the stalled threshold also
+      // drives the dashboard's Stalled filter and the stalled suggestion rule,
+      // so burying it under "review steps" would hide it from the two places
+      // people most often go looking for it.
+      const stalledDaysSetting = [
         {
           id: STALLED_DAYS_SETTING,
           name: tr("settings.stalledDaysName", "Stalled task threshold (days)"),
@@ -812,6 +836,42 @@ export default {
               if (Number.isFinite(num) && num > 0) {
                 extensionAPI.settings.set(STALLED_DAYS_SETTING, num);
               }
+            },
+          },
+        },
+      ];
+
+      const reviewStepsToggle = [
+        {
+          id: REVIEW_STEPS_SHOW_SETTING,
+          name: tr("settings.reviewStepsShow", "Review steps (Daily, Weekly, Monthly)"),
+          description: tr(
+            "settings.reviewStepsShowDescription",
+            "Show the per-step toggles for each review flow. All steps are enabled by default."
+          ),
+          action: {
+            type: "switch",
+            onChange: (v) => {
+              const normalized = normalizeBooleanSetting(normalizeTodaySettingValue(v));
+              setAndRebuild(REVIEW_STEPS_SHOW_SETTING, normalized, { reviewStepsShown: normalized });
+            },
+          },
+        },
+      ];
+
+      const suggestionRulesToggle = [
+        {
+          id: SUGGESTION_RULES_SHOW_SETTING,
+          name: tr("settings.suggestionRulesShow", "Suggestion rules"),
+          description: tr(
+            "settings.suggestionRulesShowDescription",
+            "Show the per-rule toggles and the snooze threshold for Smart Suggestions."
+          ),
+          action: {
+            type: "switch",
+            onChange: (v) => {
+              const normalized = normalizeBooleanSetting(normalizeTodaySettingValue(v));
+              setAndRebuild(SUGGESTION_RULES_SHOW_SETTING, normalized, { suggestionRulesShown: normalized });
             },
           },
         },
@@ -908,7 +968,9 @@ export default {
             type: "switch",
             onChange: (v) => {
               const normalized = normalizeBooleanSetting(normalizeTodaySettingValue(v));
-              extensionAPI.settings.set(SUGGESTIONS_ENABLED_SETTING, normalized);
+              // Rebuild: turning Suggestions off must also withdraw the per-rule
+              // group in Advanced, which is gated on this master.
+              setAndRebuild(SUGGESTIONS_ENABLED_SETTING, normalized);
             },
           },
         },
@@ -1363,10 +1425,16 @@ export default {
         ...dashboardAdvancedToggle,
 
         // ---------- Advanced ----------
+        ...(advancedDashboardEnabled ? reviewStepsToggle : []),
+        ...(advancedDashboardEnabled && reviewStepsShown ? weeklyReviewSettings : []),
+        ...(advancedDashboardEnabled ? stalledDaysSetting : []),
         ...(advancedDashboardEnabled ? [keyboardBindingsSetting] : []),
-        ...(advancedDashboardEnabled ? weeklyReviewSettings : []),
         ...(advancedDashboardEnabled ? queryAndPillSettings : []),
-        ...(advancedDashboardEnabled ? suggestionAdvancedSettings : []),
+        // Per-rule toggles are meaningless when Suggestions is off entirely.
+        ...(advancedDashboardEnabled && suggestionsMasterOn ? suggestionRulesToggle : []),
+        ...(advancedDashboardEnabled && suggestionsMasterOn && suggestionRulesShown
+          ? suggestionAdvancedSettings
+          : []),
         ...(advancedDashboardEnabled || activityLogDetailInUse ? activityLogDetail : []),
         ...(advancedDashboardEnabled || picklistExcludeEnabledValue ? picklistAdvanced : []),
         ...(advancedDashboardEnabled || aiInUse ? aiSettings : []),
