@@ -54,7 +54,7 @@ const locale = {
     templatesDescription: "Enregistrez des configurations de tâches comme modèles réutilisables avec des valeurs par défaut et une structure de sous-tâches.",
     manageTemplates: "Gérer les modèles",
     advancedDashboard: "Afficher les options avancées",
-    advancedDashboardDescription: "Affiche les réglages des étapes de revue, des raccourcis clavier, des requêtes et pastilles, des règles de suggestion, du détail du journal d'activité, des listes de choix, de la capture IA et des noms d'attributs. Les valeurs par défaut conviennent à la plupart des utilisateurs.",
+    advancedDashboardDescription: "Affiche les réglages des étapes de revue, des raccourcis clavier, des requêtes et des pastilles, des règles de suggestion, des détails du journal d'activité, des listes de choix, de la capture par IA et des noms d'attributs. Les valeurs par défaut conviennent à la plupart des utilisateurs.",
     keyboardBindings: "Raccourcis clavier (JSON)",
     keyboardBindingsDescription: "Personnalisez les raccourcis clavier du tableau de bord. Touches : moveDown, moveUp, open, complete, snooze, focusSearch, toggleSelect, selectAll, escape, delete. Par défaut : j, k, Enter, c, s, /, x, shift+a, Escape, d.",
     reviewStepDescription: "Inclure cette étape dans le flux de revue (l'ordre est fixe).",
