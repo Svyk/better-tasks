@@ -597,14 +597,19 @@ export default {
           description: tr("settings.weekStartDescription", "Used to align weekly schedules with your graph preference"),
           action: { type: "select", items: tr("settings.weekStartOptions", WEEK_START_OPTIONS) || WEEK_START_OPTIONS },
         },
+      ];
+
+      // Queries & pills — rendering and graph-shape options. Advanced: a new user
+      // has no context for any of them, and every one has a sensible default.
+      const queryAndPillSettings = [
         {
-          id: PILL_THRESHOLD_SETTING,
-          name: tr("settings.pillThreshold", "Inline pill checkbox threshold"),
+          id: BT_QUERY_ENABLE_SETTING,
+          name: tr("settings.btQueryEnable", "{{bt-query}} task lists"),
           description: tr(
-            "settings.pillThresholdDescription",
-            "Max checkbox count before Better Tasks inline pills skip initial rendering (default 100). Higher values will render but the page may be slower."
+            "settings.btQueryEnableDescription",
+            "Render interactive Better Tasks result lists in blocks containing {{bt-query: ...}}. Turning this off restores Roam's plain button."
           ),
-          action: { type: "input", placeholder: DEFAULT_PILL_THRESHOLD.toString() },
+          action: { type: "switch" },
         },
         {
           id: PILLS_IN_QUERY_RESULTS_SETTING,
@@ -625,13 +630,13 @@ export default {
           action: { type: "switch" },
         },
         {
-          id: BT_QUERY_ENABLE_SETTING,
-          name: tr("settings.btQueryEnable", "{{bt-query}} task lists"),
+          id: PILL_THRESHOLD_SETTING,
+          name: tr("settings.pillThreshold", "Inline pill checkbox threshold"),
           description: tr(
-            "settings.btQueryEnableDescription",
-            "Render interactive Better Tasks result lists in blocks containing {{bt-query: ...}}. Turning this off restores Roam's plain button."
+            "settings.pillThresholdDescription",
+            "Max checkbox count before Better Tasks inline pills skip initial rendering (default 100). Higher values will render but the page may be slower."
           ),
-          action: { type: "switch" },
+          action: { type: "input", placeholder: DEFAULT_PILL_THRESHOLD.toString() },
         },
       ];
       const reviewStepDescription = tr(
@@ -830,7 +835,7 @@ export default {
         },
       ];
 
-      const activityLogSettings = [
+      const activityLogMaster = [
         {
           id: ACTIVITY_LOG_ENABLED_SETTING,
           name: tr("settings.activityLogEnabled", "Enable task activity log"),
@@ -846,6 +851,10 @@ export default {
             },
           },
         },
+      ];
+
+      // Log detail: only meaningful once you already run the log. Advanced.
+      const activityLogDetail = [
         {
           id: ACTIVITY_LOG_TEXT_EDITS_SETTING,
           name: tr("settings.activityLogTextEdits", "Log title edits in activity"),
@@ -1058,10 +1067,10 @@ export default {
       const dashboardAdvancedToggle = [
         {
           id: ADV_DASH_OPTIONS_SETTING,
-          name: tr("settings.advancedDashboard", "Advanced Dashboard options"),
+          name: tr("settings.advancedDashboard", "Show advanced options"),
           description: tr(
             "settings.advancedDashboardDescription",
-            "Show settings for Weekly Review steps."
+            "Reveal settings for review steps, keyboard shortcuts, queries and pills, suggestion rules, activity-log detail, picklists, AI capture, and attribute names. The defaults suit most users."
           ),
           action: {
             type: "switch",
@@ -1294,36 +1303,50 @@ export default {
         ]
         : [];
 
-      // Final ordering:
-      // 1) Core
-      // 2) Today Badge
-      // 3) Today Widget
-      // 4) AI
-      // 5) Advanced Dashboard toggle
-      // 6) Weekly Review steps (advanced)
-      // 7) Smart Suggestions (master; per-rule toggles are advanced)
-      // 8) Picklist advanced
-      // 9) Attribute names (advanced) toggle + fields
+      // The Depot settings panel is a FLAT list — no native sections. Grouping is
+      // therefore expressed through order and progressive disclosure: the default
+      // view is what a new user must decide, and everything else sits behind the
+      // single "Show advanced options" switch (ADV_DASH_OPTIONS_SETTING — id kept
+      // for back-compat; ids are the persistence keys and must never change).
+      //
+      // Default view (~10 rows):
+      //   Core (language, destination, confirm, week start)
+      //   Today widget → its details when enabled
+      //   Today badge → its details when enabled
+      //   Smart Suggestions (master only)
+      //   Activity log (master only)
+      //   Task templates (button)
+      //   Show advanced options
+      //
+      // Advanced, grouped: Dashboard · Queries & pills · Suggestion rules ·
+      // Activity log detail · Picklists · AI capture · Attribute names.
+      //
+      // Exception — never hide what the user has already configured: a group
+      // whose feature is in use stays in the default view even with advanced off,
+      // so nobody loses sight of a setting they rely on.
+      const aiInUse = aiMode === AI_MODE_USE_KEY;
+      const activityLogDetailInUse =
+        normalizeBooleanSetting(extensionAPI?.settings?.get?.(ACTIVITY_LOG_TEXT_EDITS_SETTING)) ||
+        String(extensionAPI?.settings?.get?.(ACTIVITY_LOG_MAX_ENTRIES_SETTING) ?? "").trim() !== "";
+
+      const keyboardBindingsSetting = {
+        id: "bt-keyboard-bindings",
+        name: tr("settings.keyboardBindings", "Keyboard bindings (JSON)"),
+        description: tr(
+          "settings.keyboardBindingsDescription",
+          "Customise dashboard keyboard shortcuts. Keys: moveDown, moveUp, open, complete, snooze, snooze7, expandSubtasks, openMenu, toggleSelect, selectAll, focusSearch, fullPage, refresh, help, escape. Default: j, k, Enter, c, s, shift+s, e, ., x, shift+a, /, f, r, shift+/, Escape."
+        ),
+        action: { type: "input", placeholder: '{"moveDown":"j","moveUp":"k"}' },
+      };
+
       const settings = [
+        // ---------- Default view ----------
         ...coreSettings,
-        ...todayBadgeSettings,
         ...todayWidgetSettings,
         ...(todayEnabledValue ? todayWidgetDetails : []),
-        ...aiSettings,
-        ...dashboardAdvancedToggle,
-        ...(advancedDashboardEnabled ? weeklyReviewSettings : []),
-        ...(advancedDashboardEnabled ? [{
-          id: "bt-keyboard-bindings",
-          name: tr("settings.keyboardBindings", "Keyboard bindings (JSON)"),
-          description: tr(
-            "settings.keyboardBindingsDescription",
-            "Customise dashboard keyboard shortcuts. Keys: moveDown, moveUp, open, complete, snooze, snooze7, expandSubtasks, openMenu, toggleSelect, selectAll, focusSearch, fullPage, refresh, help, escape. Default: j, k, Enter, c, s, shift+s, e, ., x, shift+a, /, f, r, shift+/, Escape."
-          ),
-          action: { type: "input", placeholder: '{"moveDown":"j","moveUp":"k"}' },
-        }] : []),
+        ...todayBadgeSettings,
         ...suggestionSettings,
-        ...(advancedDashboardEnabled ? suggestionAdvancedSettings : []),
-        ...picklistAdvanced,
+        ...activityLogMaster,
         {
           id: "bt-templates-manage",
           name: tr("settings.templates", "Task Templates"),
@@ -1337,9 +1360,18 @@ export default {
             onClick: () => openTemplateManagement(),
           },
         },
-        ...attributeSettingsToggle,
+        ...dashboardAdvancedToggle,
+
+        // ---------- Advanced ----------
+        ...(advancedDashboardEnabled ? [keyboardBindingsSetting] : []),
+        ...(advancedDashboardEnabled ? weeklyReviewSettings : []),
+        ...(advancedDashboardEnabled ? queryAndPillSettings : []),
+        ...(advancedDashboardEnabled ? suggestionAdvancedSettings : []),
+        ...(advancedDashboardEnabled || activityLogDetailInUse ? activityLogDetail : []),
+        ...(advancedDashboardEnabled || picklistExcludeEnabledValue ? picklistAdvanced : []),
+        ...(advancedDashboardEnabled || aiInUse ? aiSettings : []),
+        ...(advancedDashboardEnabled || advancedAttrNamesEnabled ? attributeSettingsToggle : []),
         ...(advancedAttrNamesEnabled ? attributeSettings : []),
-        ...activityLogSettings,
       ];
 
       return {
