@@ -310,44 +310,26 @@ This document is the **canonical Better Tasks roadmap**, integrating shipped wor
 
 **Mission:** Remove daily-use friction and pay down structural debt. These are candidates, not commitments — roughly priority-ordered; promote to committed work as capacity allows.
 
-### Settings panel — order, grouping, general vs advanced
-The panel grows with every feature and now opens on a wall of switches. This is the **first surface a new user sees after installing**, so it carries a share of the perceived-complexity barrier (405 installs in 8 months as at 2026-07-13). No behaviour change — pure information architecture.
+### Settings panel — order, grouping, general vs advanced — Complete ✅ (2026-07-13, verified in a live graph)
+The panel had grown into a wall of switches. It is the **first surface a new user sees after installing**, so it carries a share of the perceived-complexity barrier — and while complexity cannot suppress *installs* (nobody reads a settings panel before installing; that is a discovery/listing problem), it plausibly drives *uninstalls*, which is what this targets. No behaviour change: pure information architecture.
 
-**Constraint:** the Depot settings panel is a **flat list** (`tabTitle` + `settings[]`). There is no native section/heading support. Levers available: item order, progressive disclosure (gate blocks behind an OFF toggle), name prefixes to imply grouping, the optional per-item `className` (CSS), and the `reactComponent` action type (could render a real heading row).
+**Result:** default view **~22 rows → ~10**; Advanced **~28 → ~13**. Commits `e101255` (restructure) → `4315d0b` (Codex i18n review: fr/ru) → `83c4c66` (nested sub-gates).
 
-**Diagnosis (2026-07-13):**
-- **"Core" is no longer core** — 8 items, of which 4 are advanced: pill checkbox threshold, pills-in-query-results, page-ref writes, `{{bt-query}}` lists. The last three were appended there during Phase 10 because the pill threshold was already there — path of least resistance, not a decision. Genuinely core: language, destination, confirm-before-spawn, first day of week.
-- **Order ignores the user journey** — Today *Badge* precedes Today *Widget*; AI capture (off by default, BYO key) sits above the dashboard block; the Activity log is last, *after* the 14 attribute-rename inputs.
-- **Irrelevant sub-options stay visible** — activity-log title-edit logging and max-entries cap show even for users who will never touch them.
-- Fresh-install default view is ~22 rows; target is ~10.
+**Constraint:** the Depot settings panel is a **flat list** (`tabTitle` + `settings[]`) — no native sections or headings. Grouping is therefore expressed purely through order and progressive disclosure. Heading rows via `reactComponent` were considered and **rejected**: Roam users already read the flat-list idiom fine, and order plus disclosure did the job.
 
-**Proposed structure — default view (fresh install):**
-1. Language
-2. Where to create the next task (+ heading input when that destination is chosen)
-3. Confirm before spawning a repeat
-4. First day of the week
-5. Today widget (off) → reveals layout/placement/heading/buttons when ON
-6. Today badge (off) → reveals colours/label when ON
-7. Smart Suggestions (on) — master only
-8. Activity log (on) — master only
-9. Task templates (button)
-10. **Show advanced options** (off) → everything below
+**Delivered — default view (fresh install):** language · where to create the next task · confirm before spawning · first day of the week · Today widget (reveals its details when on) · Today badge (ditto) · Smart Suggestions (master only) · Activity log (master only) · Task templates · **Show advanced options**.
 
-**Advanced (revealed by one toggle), grouped and ordered:**
-- **Dashboard** — keyboard bindings JSON; review step toggles (weekly / daily / monthly); stalled-days threshold
-- **Queries & pills** — `{{bt-query}}` lists; pills in query results; page links for project/waiting/context; pill checkbox threshold
-- **Suggestions** — 5 per-rule toggles + snooze threshold
-- **Activity log** — title-edit logging; max-entries cap
-- **Picklists** — exclude pages
-- **AI capture** — enable + OpenAI key
-- **Attribute names** — keeps its own sub-toggle (14 fields is a wall of its own)
+**Delivered — Advanced** (one switch, `ADV_DASH_OPTIONS_SETTING` relabelled; id kept): review steps (own sub-gate → 13 toggles) · stalled-days threshold · keyboard bindings · queries & pills (4) · suggestion rules (own sub-gate → 6, and only when the Suggestions master is on) · activity-log detail (2) · picklists · AI capture · attribute names (own sub-gate → 14).
 
-**Implementation notes:**
-- All work is in `buildSettingsConfig` (`src/index.js`) — reorder and re-gate the existing arrays; no new state.
-- **Never change a setting `id`** — ids are the persistence keys; renaming one silently orphans every user's saved preference. Labels and order are free to change.
-- Fake grouping with name prefixes (`Dashboard — Keyboard bindings`, `Queries — Inline pills in query results`) unless a `reactComponent` heading row proves clean; `className` can indent/dim advanced rows.
+**Diverged from the plan, deliberately:**
+- **Never hide what the user already configured.** A group whose feature is in use stays visible even with Advanced off — an existing user with an OpenAI key, picklist excludes, custom attribute names or a log cap set never opens settings to find their configuration apparently gone. Hiding a setting someone relies on is itself an uninstall trigger.
+- **The stalled-days threshold was pulled OUT of the review group.** It also drives the dashboard's Stalled filter chip and the stalled suggestion rule, so filing it under "review steps" would hide it from the two places people look for it. It sits at the Advanced top level.
+
+**Rules established (apply to future settings work):**
+- **Setting `id`s are persistence keys — never rename one.** Relabelling and reordering are free; renaming an id silently orphans every user's saved preference.
+- **Any group larger than ~5 rows earns its own sub-gate** (review steps, suggestion rules, attribute names).
+- **A master toggle that gates other rows must call `setAndRebuild`, not `settings.set`** — otherwise the gated group stays stranded on screen until the panel is reopened. (Latent bug found in the Suggestions master while wiring this.)
 - Label changes mean new/updated i18n strings across all 13 locales.
-- Consider collapsing the three existing advanced gates (advanced dashboard / picklist advanced / attribute names) under the single **Show advanced options** switch, keeping attribute-names as a nested sub-gate.
 
 ### Task Deletion (dashboard + pill menu) — Implemented ✅ (2026-07-11, pending live-graph verification)
 Was the top daily-use friction: the only way to delete a task used to be View → open in graph → manually delete the blocks. Shipped with a snapshot-first design: BT-managed refs into the subtree are pre-cleaned so Roam never flattens them, and undo restores the tree (original uids) plus refs on both sides.
@@ -433,4 +415,4 @@ Was the top daily-use friction: the only way to delete a task used to be View �
 
 ---
 
-*Last updated: 2026-07-13 — Roam Query Integration verified in a live graph (31 checklist items + 6 Datalog snippets, 7 bugs found and fixed); **Phase 10 complete***
+*Last updated: 2026-07-13 — Roam Query Integration verified in a live graph (31 checklist items + 6 Datalog snippets, 7 bugs found and fixed), **Phase 10 complete**; settings panel reorganised (default view ~22 → ~10 rows) — second Phase 11 candidate delivered*
