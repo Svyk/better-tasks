@@ -88,6 +88,7 @@ import {
   formatContextListForWrite,
 } from "./core/page-refs";
 import { parseBtQuery, KNOWN_KEYS as BT_QUERY_KNOWN_KEYS } from "./core/bt-query-parser";
+import { parseAttributeEditTarget } from "./core/attribute-edit";
 import {
   normalizePulledSubtree,
   flattenSubtreeToCreateSteps,
@@ -15287,23 +15288,20 @@ export default {
 
     // ========================= Child -> Props sync core =========================
     async function handleAnyEdit(evt) {
-      const set = S();
+      // This listener is registered on document in capture mode, so it sees
+      // every keystroke in Roam. Reject ordinary drafts before resolving a
+      // block UID, reading settings, or touching the graph API.
+      const edit = parseAttributeEditTarget(evt?.target);
+      if (!edit) return;
+
+      const attrNames = resolveAttributeNames();
+      let attrType = null;
+      if (edit.key === attrNames.repeatKey) attrType = "repeat";
+      else if (edit.key === attrNames.dueKey) attrType = "due";
+      if (!attrType) return;
 
       const uid = findBlockUidFromElement(evt.target);
       if (!uid) return;
-
-      // Is this block a "repeat:: ..." or "due:: ..." child?
-      const child = await getBlock(uid);
-      const line = (child?.string || "").trim();
-      const m = line.match(ATTR_RE);
-      if (!m) return;
-
-      const key = m[1].trim().toLowerCase();
-      const attrNames = set.attrNames;
-      let attrType = null;
-      if (key === attrNames.repeatKey) attrType = "repeat";
-      else if (key === attrNames.dueKey) attrType = "due";
-      if (!attrType) return;
 
       // Get parent task uid
       const parentUid = await getParentUid(uid);
