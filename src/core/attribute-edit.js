@@ -18,6 +18,9 @@ export function parseAttributeEditTarget(target) {
   }
 
   if (typeof rawText !== "string") return null;
+  // Ordinary prose is overwhelmingly the common case. Avoid even the Unicode
+  // attribute regex unless the draft contains Roam's attribute delimiter.
+  if (!rawText.includes("::")) return null;
   const match = rawText.trim().match(ATTRIBUTE_LINE_RE);
   if (!match) return null;
 
@@ -26,4 +29,3 @@ export function parseAttributeEditTarget(target) {
     value: match[2],
   };
 }
-

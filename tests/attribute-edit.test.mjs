@@ -17,6 +17,16 @@ test("ordinary Roam typing exits the attribute-edit hot path", () => {
   }
 });
 
+test("ordinary drafts skip attribute parsing before any delimiter appears", () => {
+  const draft = {
+    get value() {
+      return "A long ordinary paragraph that never becomes an attribute";
+    },
+  };
+
+  assert.equal(parseAttributeEditTarget(draft), null);
+});
+
 test("attribute child drafts are classified without a graph read", () => {
   assert.deepEqual(parseAttributeEditTarget({ value: "repeat:: every weekday" }), {
     key: "repeat",
@@ -40,4 +50,3 @@ test("non-editable targets and empty attribute values are ignored", () => {
   assert.equal(parseAttributeEditTarget({ textContent: "due:: tomorrow" }), null);
   assert.equal(parseAttributeEditTarget({ value: "due::" }), null);
 });
-
