@@ -12,6 +12,7 @@ import iziToast from "izitoast";
 import { useVirtualizer, measureElement } from "@tanstack/react-virtual";
 import { applyFilters } from "../core/filters";
 import { i18n as I18N_MAP } from "../i18n";
+import { estimateDashboardRowSize } from "./rowEstimate";
 import {
   createView,
   updateView,
@@ -3672,14 +3673,17 @@ export default function DashboardApp({ controller, onRequestClose, onHeaderReady
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [isMobileLayout, sidebarOpen]);
+  const estimatedViewportWidth = useMemo(() => {
+    if (typeof window === "undefined") return 620;
+    if (snapshot?.isFullPage || isMobileLayout) return Math.max(320, window.innerWidth - 96);
+    return 620;
+  }, [snapshot?.isFullPage, isMobileLayout]);
   const estimateRowSize = useCallback(
-    (index) => {
-      const row = rows[index];
-      if (row?.type === "group") return 40;
-      if (row?.type === "subtask") return 80;
-      return 100;
-    },
-    [rows]
+    (index) => estimateDashboardRowSize(rows[index], {
+      viewportWidth: estimatedViewportWidth,
+      mobile: isMobileLayout,
+    }),
+    [rows, estimatedViewportWidth, isMobileLayout]
   );
   const getRowKey = useCallback((index) => rows[index]?.key ?? index, [rows]);
   const getScrollElement = useCallback(() => parentRef.current, []);
@@ -3689,8 +3693,14 @@ export default function DashboardApp({ controller, onRequestClose, onHeaderReady
       estimateSize: estimateRowSize,
       getItemKey: getRowKey,
       getScrollElement,
-      overscan: isMobileApp ? 4 : isTouchDevice ? 6 : 8,
+      // The viewport usually shows only 2–4 rich task rows. Four rows of
+      // desktop overscan avoids blank edges without mounting ~20 button-heavy
+      // rows on every scroll step.
+      overscan: isMobileApp ? 3 : isTouchDevice ? 4 : 4,
       measureElement,
+      // Coalesce ResizeObserver corrections with paint instead of forcing
+      // several independent layout updates during the same scroll frame.
+      useAnimationFrameWithResizeObserver: true,
     }),
     [rows.length, estimateRowSize, getRowKey, getScrollElement, isMobileApp, isTouchDevice]
   );
