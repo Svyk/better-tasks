@@ -1529,8 +1529,8 @@ function TaskRow({ task, controller, strings, selectionActive, isSelected, onTog
 
 function AnalyticsPanel({ controller, language, onClose }) {
   const [period, setPeriod] = useState("30d");
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState(() => controller?.getAnalyticsCached?.("30d") || null);
+  const [loading, setLoading] = useState(() => !controller?.getAnalyticsCached?.("30d"));
   const panelRef = useRef(null);
   const lang = language || "en";
   const s = (key, fallback) => tPath(["analytics", key], lang) ?? fallback;
@@ -1547,6 +1547,12 @@ function AnalyticsPanel({ controller, language, onClose }) {
 
   useEffect(() => {
     let cancelled = false;
+    const cached = controller?.getAnalyticsCached?.(period);
+    if (cached) {
+      setData(cached);
+      setLoading(false);
+      return () => { cancelled = true; };
+    }
     setLoading(true);
     controller?.computeAnalytics?.(period).then((result) => {
       if (!cancelled) { setData(result); setLoading(false); }
@@ -1644,7 +1650,12 @@ function AnalyticsPanel({ controller, language, onClose }) {
               key={p.key}
               type="button"
               className={`bt-analytics-period-btn${period === p.key ? " bt-analytics-period-btn--active" : ""}`}
-              onClick={() => setPeriod(p.key)}
+              onClick={() => {
+                const cached = controller?.getAnalyticsCached?.(p.key);
+                setData(cached || null);
+                setLoading(!cached);
+                setPeriod(p.key);
+              }}
             >
               {p.label}
             </button>
@@ -3707,6 +3718,19 @@ export default function DashboardApp({ controller, onRequestClose, onHeaderReady
     revalidate().catch(() => {});
     return () => { cancelled = true; };
   }, [controller, suggestionsEnabled, snapshot?.status]);
+  // Analytics is derived entirely from the dashboard model. Fill all period
+  // caches one idle slice at a time, pausing whenever the user scrolls, so the
+  // first open and every period switch are paint-only interactions.
+  useEffect(() => {
+    if (snapshot?.status !== "ready") return undefined;
+    let cancelled = false;
+    const gate = scrollIdleGateRef.current;
+    controller?.warmAnalyticsCache?.({
+      yieldToMainThread: () => gate?.wait?.() || Promise.resolve(),
+      isCancelled: () => cancelled,
+    })?.catch?.(() => {});
+    return () => { cancelled = true; };
+  }, [controller, snapshot?.status, snapshot?.lastUpdated]);
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") return undefined;
     const mq = window.matchMedia("(max-width: 639px)");

@@ -59,3 +59,26 @@ test("dashboard warm-up does not compete with an already open dashboard", () => 
   idleCallback();
   assert.equal(calls, 0);
 });
+
+test("dashboard warm-up primes Analytics after the shared model is ready", async () => {
+  let idleCallback = null;
+  const events = [];
+  const windowLike = {
+    requestIdleCallback(callback) { idleCallback = callback; return 4; },
+    cancelIdleCallback() {},
+  };
+  scheduleDashboardWarmup({
+    isOpen: () => false,
+    ensureInitialLoad: async () => { events.push("model"); },
+    warmAnalyticsCache: async ({ yieldToMainThread, isCancelled }) => {
+      events.push("analytics");
+      assert.equal(typeof yieldToMainThread, "function");
+      assert.equal(isCancelled(), false);
+    },
+  }, { windowLike });
+
+  idleCallback();
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.deepEqual(events, ["model", "analytics"]);
+});
