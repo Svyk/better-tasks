@@ -90,6 +90,7 @@ import {
 import { parseBtQuery, KNOWN_KEYS as BT_QUERY_KNOWN_KEYS } from "./core/bt-query-parser";
 import { parseAttributeEditTarget } from "./core/attribute-edit";
 import { buildDirectParentUidQuery } from "./core/direct-parent";
+import { scheduleDashboardWarmup } from "./core/dashboard-warmup";
 import {
   normalizePulledSubtree,
   flattenSubtreeToCreateSteps,
@@ -363,6 +364,7 @@ let pillDomCountsCache = { at: 0, blockCount: null, checkboxCount: null };
 
 let lastAttrNames = null;
 let activeDashboardController = null;
+let dashboardWarmupCleanup = null;
 let dashboardEverOpened = false;
 const dashboardWatchers = new Map();
 let topbarButtonObserver = null;
@@ -1714,6 +1716,10 @@ export default {
     }
 
     activeDashboardController = createDashboardController(extensionAPI);
+    dashboardWarmupCleanup?.();
+    dashboardWarmupCleanup = scheduleDashboardWarmup(activeDashboardController, {
+      windowLike: typeof window !== "undefined" ? window : null,
+    });
     registerExtensionToolsAPI();
 
     try {
@@ -16768,7 +16774,11 @@ export default {
             language={getLanguageSetting()}
           />
         );
-        ensureInitialLoad();
+        // Let React commit the dashboard shell before any graph-wide task
+        // collection starts. Usually the idle warm-up has already populated
+        // state; on a very early click this guarantees visible feedback by the
+        // next frame instead of a blank/white pause.
+        requestAnimationFrame(() => ensureInitialLoad());
         setTopbarActive(true);
         if (isFullPage) {
           requestAnimationFrame(() => enableFullPage());
@@ -19397,6 +19407,8 @@ export default {
     if (typeof teardownTodayPanelGlobal === "function") {
       await teardownTodayPanelGlobal();
     }
+    dashboardWarmupCleanup?.();
+    dashboardWarmupCleanup = null;
     if (activeDashboardController) {
       try {
         activeDashboardController.dispose?.();
