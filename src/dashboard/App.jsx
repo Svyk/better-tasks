@@ -11,8 +11,10 @@ import { createPortal } from "react-dom";
 import iziToast from "izitoast";
 import { useVirtualizer, measureElement } from "@tanstack/react-virtual";
 import { applyFilters } from "../core/filters";
+import { resolveBlockReferences } from "../core/block-references";
 import { i18n as I18N_MAP } from "../i18n";
-import { estimateDashboardRowSize } from "./rowEstimate";
+import { estimateDashboardRowSize, visibleDashboardText } from "./rowEstimate";
+import { createScrollIdleGate } from "./scrollIdleGate";
 import { shouldAdjustDashboardScrollPositionOnItemSizeChange } from "./scrollStability";
 import {
   createView,
@@ -182,9 +184,12 @@ function cycleGtdStatus(current) {
   return order[(idx + 1) % order.length];
 }
 
-const TITLE_TOKEN_RE = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)|\[\[([^\]]+)\]\]/g;
+const TITLE_TOKEN_RE = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)|\[\[([^\]]+)\]\]|\(\(([A-Za-z0-9_-]{9})\)\)/g;
 
-function resolvePageUid(title) {
+function resolvePageUid(title, controller) {
+  if (typeof controller?.resolvePageUid === "function") {
+    return controller.resolvePageUid(title);
+  }
   try {
     const result = window.roamAlphaAPI?.data?.pull?.(
       "[:block/uid]", [":node/title", title]
@@ -219,7 +224,7 @@ function renderTitleWithLinks(title, controller) {
     } else if (match[3]) {
       // Page ref: [[page name]]
       const pageName = match[3];
-      const pageUid = resolvePageUid(pageName);
+      const pageUid = resolvePageUid(pageName, controller);
       if (pageUid && controller?.openPage) {
         parts.push(
           <button
@@ -234,6 +239,30 @@ function renderTitleWithLinks(title, controller) {
         );
       } else {
         parts.push(<span key={`pr-${match.index}`} className="bt-task-row__page-ref--plain">{pageName}</span>);
+      }
+    } else if (match[4]) {
+      // Block ref: display the referenced block text while keeping the whole
+      // resolved label as one navigation target (nested buttons are invalid).
+      const blockUid = match[4];
+      const resolved = controller?.resolveBlockRefTitle?.(blockUid);
+      const fullyResolved = resolved
+        ? resolveBlockReferences(resolved, (uid) => controller?.resolveBlockRefTitle?.(uid))
+        : null;
+      const label = fullyResolved ? visibleDashboardText(fullyResolved) : match[0];
+      if (resolved && controller?.openBlock) {
+        parts.push(
+          <button
+            key={`br-${match.index}`}
+            type="button"
+            className="bt-task-row__page-ref bt-task-row__block-ref"
+            onClick={(e) => { e.stopPropagation(); controller.openBlock(blockUid); }}
+            title="Open referenced block"
+          >
+            {label}
+          </button>
+        );
+      } else {
+        parts.push(<span key={`br-${match.index}`} className="bt-task-row__page-ref--plain">{label}</span>);
       }
     }
     lastIndex = TITLE_TOKEN_RE.lastIndex;
@@ -1854,8 +1883,9 @@ const SUGGESTION_RULE_TEXT_KEYS = {
 };
 
 function SuggestionsPanel({ controller, language, onClose, onCountChange }) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const initialCached = controller?.getSuggestionsCached?.() || null;
+  const [data, setData] = useState(initialCached);
+  const [loading, setLoading] = useState(!initialCached);
   const [pendingId, setPendingId] = useState(null);
   const panelRef = useRef(null);
   const lang = language || "en";
@@ -1865,7 +1895,7 @@ function SuggestionsPanel({ controller, language, onClose, onCountChange }) {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    setLoading(!controller?.getSuggestionsCached?.());
     controller?.computeSuggestions?.()
       .then((result) => {
         if (cancelled) return;
@@ -3131,6 +3161,18 @@ function EmptyState({ status, onRefresh, strings }) {
   return <div className="bt-empty">{copy.noMatch || "No tasks match the selected filters."}</div>;
 }
 
+function SuggestionsBadge({ count }) {
+  const visible = Number.isInteger(count) && count > 0;
+  return (
+    <span
+      className={`bt-suggestions-badge${visible ? "" : " bt-suggestions-badge--placeholder"}`}
+      aria-hidden={!visible}
+    >
+      {visible ? count : 0}
+    </span>
+  );
+}
+
 export default function DashboardApp({ controller, onRequestClose, onHeaderReady, language = "en" }) {
   const snapshot = useControllerSnapshot(controller);
   const [filters, dispatchFilters] = useReducer(filtersReducer, DEFAULT_FILTERS, loadSavedFilters);
@@ -3198,7 +3240,9 @@ export default function DashboardApp({ controller, onRequestClose, onHeaderReady
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestionsCount, setSuggestionsCount] = useState(
-    () => controller?.getSuggestionsCached?.()?.suggestions?.length ?? null
+    () => controller?.getSuggestionsCountCached?.()
+      ?? controller?.getSuggestionsCached?.()?.suggestions?.length
+      ?? null
   );
   const handleSuggestionsCount = useCallback((n) => setSuggestionsCount(n), []);
   // Read once per controller — toggling the setting takes effect when the
@@ -3207,21 +3251,6 @@ export default function DashboardApp({ controller, onRequestClose, onHeaderReady
     () => controller?.getSuggestionSettings?.()?.enabled !== false,
     [controller]
   );
-  // Warm the badge shortly after the dashboard opens: suggestions otherwise
-  // compute only on panel open, which left the badge empty after a Roam
-  // reload. Deferred so it never competes with the initial task load.
-  const suggestionsWarmupRan = useRef(false);
-  useEffect(() => {
-    if (!suggestionsEnabled || suggestionsWarmupRan.current) return undefined;
-    if (controller?.getSuggestionsCached?.()) return undefined; // already warm
-    suggestionsWarmupRan.current = true;
-    const timer = setTimeout(() => {
-      controller?.computeSuggestions?.()
-        .then((result) => setSuggestionsCount(result?.suggestions?.length ?? 0))
-        .catch(() => {});
-    }, 2500);
-    return () => clearTimeout(timer);
-  }, [controller, suggestionsEnabled]);
   const [focusModeOpen, setFocusModeOpen] = useState(false);
   const [focusQueue, setFocusQueue] = useState(null);
 
@@ -3625,6 +3654,59 @@ export default function DashboardApp({ controller, onRequestClose, onHeaderReady
 
   const rows = useVirtualRows(groups, expandedGroups, expandedParentTasks, filteredTaskIndex);
   const parentRef = useRef(null);
+  const scrollIdleGateRef = useRef(null);
+  if (!scrollIdleGateRef.current) {
+    scrollIdleGateRef.current = createScrollIdleGate();
+  }
+  useEffect(() => {
+    const node = parentRef.current;
+    const gate = scrollIdleGateRef.current;
+    if (!node || !gate) return undefined;
+    const onScroll = () => gate.markScroll();
+    const onScrollEnd = () => gate.markScrollEnd();
+    node.addEventListener("scroll", onScroll, { passive: true });
+    node.addEventListener("scrollend", onScrollEnd, { passive: true });
+    return () => {
+      node.removeEventListener("scroll", onScroll);
+      node.removeEventListener("scrollend", onScrollEnd);
+    };
+  }, [snapshot?.status, snapshot?.isFullPage, isMobileLayout]);
+  useEffect(() => () => scrollIdleGateRef.current?.dispose?.(), []);
+  // Keep the Suggestions indication proactive without putting its graph reads
+  // or React state update on the scroll path. The last verified count paints
+  // immediately. On a browser's first run, a zero-I/O model pass supplies a
+  // provisional count, then the complete analysis revalidates automatically in
+  // tiny idle chunks. The final badge update itself also waits for scroll quiet.
+  useEffect(() => {
+    if (!suggestionsEnabled || snapshot?.status !== "ready") return undefined;
+    let cancelled = false;
+    const gate = scrollIdleGateRef.current;
+    const revalidate = async () => {
+      if (suggestionsCount == null) {
+        const provisional = await controller?.computeSuggestions?.({ fast: true });
+        await (gate?.wait?.() || Promise.resolve());
+        if (!cancelled) {
+          setSuggestionsCount((previous) => {
+            const next = provisional?.suggestions?.length ?? 0;
+            return previous === next ? previous : next;
+          });
+        }
+      }
+      const verified = await controller?.computeSuggestions?.({
+        background: true,
+        yieldToMainThread: () => gate?.wait?.() || Promise.resolve(),
+      });
+      await (gate?.wait?.() || Promise.resolve());
+      if (!cancelled) {
+        setSuggestionsCount((previous) => {
+          const next = verified?.suggestions?.length ?? 0;
+          return previous === next ? previous : next;
+        });
+      }
+    };
+    revalidate().catch(() => {});
+    return () => { cancelled = true; };
+  }, [controller, suggestionsEnabled, snapshot?.status]);
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") return undefined;
     const mq = window.matchMedia("(max-width: 639px)");
@@ -5101,9 +5183,7 @@ export default function DashboardApp({ controller, onRequestClose, onHeaderReady
                 onClick={() => setShowSuggestions(true)}
               >
                 {tPath(["suggestions", "title"], lang) || "Suggestions"}
-                {suggestionsCount > 0 ? (
-                  <span className="bt-suggestions-badge">{suggestionsCount}</span>
-                ) : null}
+                <SuggestionsBadge count={suggestionsCount} />
               </button>
             ) : null}
             {!isMobileLayout ? (
@@ -5548,9 +5628,7 @@ export default function DashboardApp({ controller, onRequestClose, onHeaderReady
               onClick={() => setShowSuggestions(true)}
             >
               {tPath(["suggestions", "title"], lang) || "Suggestions"}
-              {suggestionsCount > 0 ? (
-                <span className="bt-suggestions-badge">{suggestionsCount}</span>
-              ) : null}
+              <SuggestionsBadge count={suggestionsCount} />
             </button>
           ) : null}
           {!isMobileLayout ? (
