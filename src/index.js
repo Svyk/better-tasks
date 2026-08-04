@@ -91,6 +91,7 @@ import { parseBtQuery, KNOWN_KEYS as BT_QUERY_KNOWN_KEYS } from "./core/bt-query
 import { parseAttributeEditTarget } from "./core/attribute-edit";
 import { buildDirectParentUidQuery } from "./core/direct-parent";
 import { scheduleDashboardWarmup } from "./core/dashboard-warmup";
+import { createAnalyticsCache } from "./core/analytics-cache";
 import { openBetterTasksSettings } from "./core/open-settings";
 import { resolveBlockReferences } from "./core/block-references";
 import {
@@ -4921,7 +4922,7 @@ export default {
     // ========================= Recurring series index (populated by collectDashboardTasks) ===
     // Map<seriesId, { members: DashboardTask[] }> — groups tasks sharing the same rt.parent / rt.id
     let dashboardSeriesIndex = new Map();
-    let analyticsCache = null;
+    const analyticsCache = createAnalyticsCache();
 
     // ========================= Smart Suggestions caches =========================
     let suggestionsCache = null; // { data, computedAt, complete } — 30s TTL
@@ -12375,6 +12376,7 @@ export default {
           box-sizing: border-box;
           padding: 6px 8px;
           margin-left: 14px;
+          container-type: inline-size;
         }
         .bt-today-panel__header {
           display: flex;
@@ -12414,7 +12416,10 @@ export default {
           color: inherit;
           min-width: 0;
           flex: 1 1 auto;
-          word-break: break-word;
+          white-space: normal;
+          overflow-wrap: anywhere;
+          word-break: normal;
+          line-height: 1.4;
         }
         .bt-today-panel__item--completed .bt-today-panel__row-title {
           text-decoration: line-through;
@@ -12428,6 +12433,19 @@ export default {
           gap: 6px;
           flex-shrink: 0;
           white-space: nowrap;
+        }
+        @container (max-width: 420px) {
+          .bt-today-panel__row {
+            flex-wrap: wrap;
+            align-items: flex-start;
+          }
+          .bt-today-panel__row-title {
+            flex-basis: 100%;
+          }
+          .bt-today-panel__row-actions {
+            width: 100%;
+            justify-content: flex-end;
+          }
         }
         .bt-today-panel__icon-btn {
           border: 1px solid var(--bt-border, rgba(0,0,0,0.22));
@@ -15724,20 +15742,20 @@ export default {
         dismissSuggestion,
         acceptSuggestion,
         getSuggestionSettings,
-        computeAnalytics: async (period) => {
-          const ANALYTICS_CACHE_TTL = 30000;
-          if (
-            analyticsCache &&
-            analyticsCache.period === period &&
-            Date.now() - analyticsCache.computedAt < ANALYTICS_CACHE_TTL
-          ) {
-            return analyticsCache.data;
-          }
-          const tasks = await collectDashboardTasks({
-            includeCompleted: true,
-            attachWatches: false,
-            cacheKey: "analytics",
-          });
+        getAnalyticsCached: (period = "30d") => analyticsCache.get(period) || null,
+        warmAnalyticsCache,
+        computeAnalytics: async (period = "30d") => {
+          const cached = analyticsCache.get(period);
+          if (cached) return cached;
+          // The dashboard model already contains open and completed tasks. Reuse
+          // it instead of issuing a second graph-wide query on first open.
+          const tasks = state.status === "ready" || state.tasks.length
+            ? state.tasks
+            : await collectDashboardTasks({
+                includeCompleted: true,
+                attachWatches: false,
+                cacheKey: "dash:withDone",
+              });
           const all = Array.isArray(tasks) ? tasks : [];
           const now = new Date();
           const todayISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
@@ -15925,7 +15943,7 @@ export default {
             recurringAdherence: { avgOnTimeRate, totalSeries: seriesCount, topPerformers, bottomPerformers },
             heatmap: { byDayOfWeek, byDate: heatmapByDate },
           };
-          analyticsCache = { period, data, computedAt: Date.now() };
+          analyticsCache.set(period, data);
           return data;
         },
         isDashboardFullPage: () => !!isFullPage,
@@ -16499,12 +16517,27 @@ export default {
 
       function ensureInitialLoad() {
         if (state.status === "idle" && !refreshPromise) {
-          void refresh({ reason: "initial" });
+          return refresh({ reason: "initial" });
         }
+        return refreshPromise || Promise.resolve(state);
+      }
+
+      async function warmAnalyticsCache({
+        periods = ["30d", "7d", "90d", "all"],
+        yieldToMainThread = null,
+        isCancelled = null,
+      } = {}) {
+        await ensureInitialLoad();
+        await analyticsCache.warm({
+          periods,
+          yieldToMainThread,
+          isCancelled,
+          compute: (period) => controller.computeAnalytics(period),
+        });
       }
 
       async function refresh({ reason = "manual" } = {}) {
-        analyticsCache = null;
+        analyticsCache.clear();
         suggestionsCache = null;
         if (refreshPromise) return refreshPromise;
         state = {
@@ -17426,6 +17459,7 @@ export default {
         removeDashboardWatch(uid);
         const tasks = state.tasks.filter((task) => task.uid !== uid);
         if (tasks.length === state.tasks.length) return;
+        analyticsCache.clear();
         state = { ...state, tasks };
         emit();
       }
@@ -17718,6 +17752,7 @@ export default {
             task.parentTaskUid === oldEntry.parentTaskUid &&
             !parentTaskModified;
           if (subtasksSame) return;
+          analyticsCache.clear();
           state = { ...state, tasks: sortDashboardTasksList(tasks) };
           emit();
           if (controller.isOpen()) {
@@ -17745,7 +17780,7 @@ export default {
       }
 
       function dispose() {
-        analyticsCache = null;
+        analyticsCache.clear();
         suggestionsCache = null;
         snoozeCountCache.clear();
         subscribers.clear();
@@ -19215,7 +19250,9 @@ export default {
         (options.includeOverdue && sections.overdue.length);
       const signatureParts = [];
       const pushSection = (arr) =>
-        signatureParts.push(...(arr || []).map((t) => `${t.uid}:${t.isCompleted ? "done" : "todo"}`));
+        signatureParts.push(...(arr || []).map((t) =>
+          `${t.uid}:${t.isCompleted ? "done" : "todo"}:${t.displayTitle || t.title || ""}`
+        ));
       pushSection(sections.startingToday);
       pushSection(sections.deferredToToday);
       pushSection(sections.dueToday);
@@ -19255,7 +19292,8 @@ export default {
           const titleBtn = document.createElement("button");
           titleBtn.type = "button";
           titleBtn.className = "bt-today-panel__row-title";
-          titleBtn.textContent = (task.isBlocked ? "🔒 " : "") + (task.title || todayStrings.untitled || "(Untitled)");
+          titleBtn.textContent = (task.isBlocked ? "🔒 " : "")
+            + (task.displayTitle || task.title || todayStrings.untitled || "(Untitled)");
           titleBtn.addEventListener("click", (e) => {
             const openInSidebar = !!e?.shiftKey;
             if (openInSidebar) {
