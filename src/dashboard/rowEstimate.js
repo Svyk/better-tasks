@@ -4,8 +4,15 @@ const FLOATING_DASHBOARD_WIDTH_PX = 620;
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
+export function visibleDashboardText(value) {
+  return String(value ?? "")
+    .replace(/\[([^\]]+)\]\(\(\([^)]*\)\)\)/g, "$1")
+    .replace(/\[\[([^\]]+)\]\]/g, "$1")
+    .replace(/(?:\*\*|__|~~|\^\^|`)/g, "");
+}
+
 function pillDisplayValue(pill) {
-  return String(pill?.value ?? pill?.raw ?? "");
+  return visibleDashboardText(pill?.value ?? pill?.raw ?? "");
 }
 
 function estimatePillRows(pills, availableWidth) {
@@ -43,8 +50,8 @@ export function estimateDashboardRowSize(
   if (row?.type === "subtask") return SUBTASK_ROW_PX;
 
   const task = row?.task || {};
-  const title = String(task.title || "");
-  const notes = String(task.metadata?.notes || "");
+  const title = visibleDashboardText(task.title || "");
+  const notes = visibleDashboardText(task.metadata?.notes || "");
   const bodyWidth = Math.max(220, viewportWidth - (mobile ? 92 : 224));
   const pillWidth = Math.max(200, viewportWidth - (mobile ? 84 : 256));
   const charsPerLine = Math.max(28, Math.floor(bodyWidth / 7));

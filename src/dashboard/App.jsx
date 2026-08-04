@@ -13,6 +13,7 @@ import { useVirtualizer, measureElement } from "@tanstack/react-virtual";
 import { applyFilters } from "../core/filters";
 import { i18n as I18N_MAP } from "../i18n";
 import { estimateDashboardRowSize } from "./rowEstimate";
+import { shouldAdjustDashboardScrollPositionOnItemSizeChange } from "./scrollStability";
 import {
   createView,
   updateView,
@@ -3698,6 +3699,14 @@ export default function DashboardApp({ controller, onRequestClose, onHeaderReady
       // rows on every scroll step.
       overscan: isMobileApp ? 3 : isTouchDevice ? 4 : 4,
       measureElement,
+      // Never rewrite scrollTop after a late row measurement. The estimates
+      // are tuned to the rendered cards, and preserving the user's physical
+      // trackpad position prevents the post-scroll anchor nudge.
+      shouldAdjustScrollPositionOnItemSizeChange:
+        shouldAdjustDashboardScrollPositionOnItemSizeChange,
+      // Prefer the browser's true momentum-scroll boundary. TanStack falls
+      // back to its debounce automatically on browsers without scrollend.
+      useScrollendEvent: true,
       // Coalesce ResizeObserver corrections with paint instead of forcing
       // several independent layout updates during the same scroll frame.
       useAnimationFrameWithResizeObserver: true,
@@ -5108,6 +5117,15 @@ export default function DashboardApp({ controller, onRequestClose, onHeaderReady
             <button
               type="button"
               className="bp3-button bp3-small"
+              onClick={() => controller?.openSettings?.()}
+              aria-label="Settings"
+              title="Open Better Tasks settings"
+            >
+              Settings
+            </button>
+            <button
+              type="button"
+              className="bp3-button bp3-small"
               onClick={onRequestClose}
               aria-label={ui.close}
             >
@@ -5542,6 +5560,15 @@ export default function DashboardApp({ controller, onRequestClose, onHeaderReady
           ) : null}
           <button type="button" className="bp3-button bp3-small" onClick={handleRefresh}>
             {ui.refresh}
+          </button>
+          <button
+            type="button"
+            className="bp3-button bp3-small"
+            onClick={() => controller?.openSettings?.()}
+            aria-label="Settings"
+            title="Open Better Tasks settings"
+          >
+            Settings
           </button>
           <button
             type="button"

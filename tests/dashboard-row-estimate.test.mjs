@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   DASHBOARD_ROW_ESTIMATE_DEFAULTS,
   estimateDashboardRowSize,
+  visibleDashboardText,
 } from "../src/dashboard/rowEstimate.js";
 
 test("group and subtask estimates match their stable rendered heights", () => {
@@ -58,6 +59,21 @@ test("wider full-page layouts estimate fewer wraps", () => {
     estimateDashboardRowSize(row, { viewportWidth: 620 }) >
       estimateDashboardRowSize(row, { viewportWidth: 1200 })
   );
+});
+
+test("row estimates count visible Roam text instead of reference markup", () => {
+  assert.equal(visibleDashboardText("Review [[Long Project Name]] with **Alex**"), "Review Long Project Name with Alex");
+  assert.equal(visibleDashboardText("[Alias](((abcdefghi)))"), "Alias");
+
+  const plain = estimateDashboardRowSize({
+    type: "task",
+    task: { title: "Review Long Project Name with Alex", metadata: {} },
+  });
+  const rich = estimateDashboardRowSize({
+    type: "task",
+    task: { title: "Review [[Long Project Name]] with **Alex**", metadata: {} },
+  });
+  assert.equal(rich, plain);
 });
 
 test("exported defaults document the floating dashboard geometry", () => {

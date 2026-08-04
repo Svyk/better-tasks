@@ -91,6 +91,7 @@ import { parseBtQuery, KNOWN_KEYS as BT_QUERY_KNOWN_KEYS } from "./core/bt-query
 import { parseAttributeEditTarget } from "./core/attribute-edit";
 import { buildDirectParentUidQuery } from "./core/direct-parent";
 import { scheduleDashboardWarmup } from "./core/dashboard-warmup";
+import { openBetterTasksSettings } from "./core/open-settings";
 import {
   normalizePulledSubtree,
   flattenSubtreeToCreateSteps,
@@ -1480,6 +1481,16 @@ export default {
 
     const config = buildSettingsConfig();
     extensionAPI.settings.panel.create(config);
+
+    extensionAPI.ui.commandPalette.addCommand({
+      label: "Better Tasks: Open settings",
+      callback: async () => {
+        const opened = await openBetterTasksSettings();
+        if (!opened) {
+          toast(t("toasts.openSettings", getLanguageSetting()) || "Open Roam Depot, then choose Better Tasks under Extension Settings.");
+        }
+      },
+    });
 
     if (extensionAPI.settings.get(ACTIVITY_LOG_ENABLED_SETTING) == null) {
       extensionAPI.settings.set(ACTIVITY_LOG_ENABLED_SETTING, true);
@@ -17369,11 +17380,10 @@ export default {
         }
       }
 
-      function openSettings() {
+      async function openSettings() {
         try {
-          if (extensionAPI?.settings?.open) {
-            extensionAPI.settings.open();
-          } else {
+          const opened = await openBetterTasksSettings();
+          if (!opened) {
             toast("Open the Roam Depot settings for Better Tasks to adjust options.");
           }
         } catch (err) {
