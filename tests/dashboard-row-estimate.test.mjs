@@ -1,0 +1,69 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import {
+  DASHBOARD_ROW_ESTIMATE_DEFAULTS,
+  estimateDashboardRowSize,
+} from "../src/dashboard/rowEstimate.js";
+
+test("group and subtask estimates match their stable rendered heights", () => {
+  assert.equal(estimateDashboardRowSize({ type: "group" }), 30);
+  assert.equal(estimateDashboardRowSize({ type: "subtask" }), 80);
+});
+
+test("compact rows no longer use the old 100px blanket guess", () => {
+  const size = estimateDashboardRowSize({
+    type: "task",
+    task: {
+      title: "Short task",
+      metadata: {},
+      metaPills: [{ type: "due", value: "Mon" }],
+    },
+  });
+  assert.equal(size, 109);
+});
+
+test("notes, wrapped titles, and wide project pills predict richer rows", () => {
+  const size = estimateDashboardRowSize({
+    type: "task",
+    task: {
+      title: "A long task title that wraps onto a second line in the floating dashboard view",
+      metadata: { notes: "A sufficiently long note that occupies both clamped note lines in the task row." },
+      metaPills: [
+        { type: "due", value: "Mon" },
+        { type: "project", value: "{{or: [[A long project name]] | [[Another project]] | +[[Active Projects]]}}" },
+        { type: "context", value: "computer" },
+        { type: "priority", value: "High" },
+        { type: "energy", value: "Medium" },
+      ],
+    },
+  });
+  assert.ok(size >= 210, `expected a rich row estimate, received ${size}`);
+});
+
+test("wider full-page layouts estimate fewer wraps", () => {
+  const row = {
+    type: "task",
+    task: {
+      title: "A fairly long task title that wraps in the compact floating dashboard",
+      metadata: { notes: "Some explanatory notes for the task." },
+      metaPills: [
+        { type: "due", value: "Monday" },
+        { type: "project", value: "[[Dashboard Performance]]" },
+        { type: "context", value: "computer" },
+      ],
+    },
+  };
+  assert.ok(
+    estimateDashboardRowSize(row, { viewportWidth: 620 }) >
+      estimateDashboardRowSize(row, { viewportWidth: 1200 })
+  );
+});
+
+test("exported defaults document the floating dashboard geometry", () => {
+  assert.deepEqual(DASHBOARD_ROW_ESTIMATE_DEFAULTS, {
+    group: 30,
+    subtask: 80,
+    floatingWidth: 620,
+  });
+});
