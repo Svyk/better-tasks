@@ -89,6 +89,7 @@ import {
 } from "./core/page-refs";
 import { parseBtQuery, KNOWN_KEYS as BT_QUERY_KNOWN_KEYS } from "./core/bt-query-parser";
 import { parseAttributeEditTarget } from "./core/attribute-edit";
+import { buildDirectParentUidQuery } from "./core/direct-parent";
 import {
   normalizePulledSubtree,
   flattenSubtreeToCreateSteps,
@@ -15318,12 +15319,7 @@ export default {
 
     async function getParentUid(childUid) {
       const safeChildUid = escapeDatalogString(childUid);
-      const res = await window.roamAlphaAPI.q(`
-        [:find ?puid
-         :where
-         [?c :block/uid "${safeChildUid}"]
-         [?c :block/parents ?p]
-         [?p :block/uid ?puid]]`);
+      const res = await window.roamAlphaAPI.q(buildDirectParentUidQuery(safeChildUid));
       return res?.[0]?.[0] || null;
     }
 
