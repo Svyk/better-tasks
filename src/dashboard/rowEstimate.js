@@ -8,6 +8,7 @@ export function visibleDashboardText(value) {
   return String(value ?? "")
     .replace(/\[([^\]]+)\]\(\(\([^)]*\)\)\)/g, "$1")
     .replace(/\[\[([^\]]+)\]\]/g, "$1")
+    .replace(/\(\(([A-Za-z0-9_-]{9})\)\)/g, "$1")
     .replace(/(?:\*\*|__|~~|\^\^|`)/g, "");
 }
 
@@ -50,7 +51,7 @@ export function estimateDashboardRowSize(
   if (row?.type === "subtask") return SUBTASK_ROW_PX;
 
   const task = row?.task || {};
-  const title = visibleDashboardText(task.title || "");
+  const title = visibleDashboardText(task.displayTitle || task.title || "");
   const notes = visibleDashboardText(task.metadata?.notes || "");
   const bodyWidth = Math.max(220, viewportWidth - (mobile ? 92 : 224));
   const pillWidth = Math.max(200, viewportWidth - (mobile ? 84 : 256));

@@ -76,6 +76,22 @@ test("row estimates count visible Roam text instead of reference markup", () => 
   assert.equal(rich, plain);
 });
 
+test("resolved block-reference text drives the estimate instead of the raw UID", () => {
+  const resolved = estimateDashboardRowSize({
+    type: "task",
+    task: {
+      title: "See ((xJuYmHX0v))",
+      displayTitle: "See the full referenced task title which wraps onto another line",
+      metadata: {},
+    },
+  }, { viewportWidth: 360 });
+  const raw = estimateDashboardRowSize({
+    type: "task",
+    task: { title: "See ((xJuYmHX0v))", metadata: {} },
+  }, { viewportWidth: 360 });
+  assert.ok(resolved > raw);
+});
+
 test("exported defaults document the floating dashboard geometry", () => {
   assert.deepEqual(DASHBOARD_ROW_ESTIMATE_DEFAULTS, {
     group: 30,

@@ -92,6 +92,12 @@ import { parseAttributeEditTarget } from "./core/attribute-edit";
 import { buildDirectParentUidQuery } from "./core/direct-parent";
 import { scheduleDashboardWarmup } from "./core/dashboard-warmup";
 import { openBetterTasksSettings } from "./core/open-settings";
+import { resolveBlockReferences } from "./core/block-references";
+import {
+  readSuggestionCountSnapshot,
+  suggestionCountSnapshotKey,
+  writeSuggestionCountSnapshot,
+} from "./core/suggestion-snapshot";
 import {
   normalizePulledSubtree,
   flattenSubtreeToCreateSteps,
@@ -4918,8 +4924,22 @@ export default {
     let analyticsCache = null;
 
     // ========================= Smart Suggestions caches =========================
-    let suggestionsCache = null; // { data, computedAt } — 30s TTL, analytics model
+    let suggestionsCache = null; // { data, computedAt, complete } — 30s TTL
     const SUGGESTIONS_CACHE_TTL_MS = 30000;
+    const currentGraphName = (() => {
+      try {
+        return window.roamAlphaAPI?.graph?.name?.() || "default";
+      } catch (_) {
+        return "default";
+      }
+    })();
+    const suggestionsCountStorageKey = suggestionCountSnapshotKey(currentGraphName);
+    let suggestionsCountSnapshot = readSuggestionCountSnapshot(
+      typeof window !== "undefined" ? window.localStorage : null,
+      suggestionsCountStorageKey
+    );
+    const dashboardBlockRefTitleCache = new Map();
+    const dashboardPageUidCache = new Map();
     // uid → { count, editedAt, at }. Valid only when editedAt still matches the
     // task AND the entry is younger than the TTL — :edit/time does not reliably
     // move when a grandchild activity event is written, so editedAt alone is
@@ -4930,6 +4950,7 @@ export default {
     const SNOOZE_COUNT_TTL_MS = 5 * 60 * 1000;
     const SNOOZE_FANOUT_CAP = 200; // hard bound on activity-log reads per compute
     const SNOOZE_FANOUT_CHUNK = 5;
+    const SNOOZE_BACKGROUND_CHUNK = 2;
     let snoozeFanoutCapWarned = false;
 
     // ========================= Dependency / blocked-state helpers =========================
@@ -15623,6 +15644,8 @@ export default {
         bulkUpdateMetadata,
         openBlock,
         openPage,
+        resolveBlockRefTitle: resolveDashboardBlockRefTitle,
+        resolvePageUid: resolveDashboardPageUid,
         notifyBlockChange,
         removeTask,
         openSettings,
@@ -15697,6 +15720,7 @@ export default {
         getWeekStart: () => getWeekStartSetting(),
         computeSuggestions: computeDashboardSuggestions,
         getSuggestionsCached,
+        getSuggestionsCountCached,
         dismissSuggestion,
         acceptSuggestion,
         getSuggestionSettings,
@@ -16154,7 +16178,7 @@ export default {
       // they exist. Bounded fan-out: only tasks the snooze rule can act on,
       // cache-first, at most SNOOZE_FANOUT_CAP uncached reads per pass in
       // small sequential chunks so a large graph cannot freeze the tab.
-      async function collectSnoozeCounts(tasks) {
+      async function collectSnoozeCounts(tasks, options = {}) {
         if (!activityLogEnabled()) return null;
         const candidates = tasks.filter(
           (task) =>
@@ -16180,8 +16204,12 @@ export default {
             );
           }
         }
-        for (let i = 0; i < toRead.length; i += SNOOZE_FANOUT_CHUNK) {
-          const chunk = toRead.slice(i, i + SNOOZE_FANOUT_CHUNK);
+        const chunkSize = options.background ? SNOOZE_BACKGROUND_CHUNK : SNOOZE_FANOUT_CHUNK;
+        for (let i = 0; i < toRead.length; i += chunkSize) {
+          if (options.background && typeof options.yieldToMainThread === "function") {
+            await options.yieldToMainThread();
+          }
+          const chunk = toRead.slice(i, i + chunkSize);
           await Promise.all(
             chunk.map(async (task) => {
               try {
@@ -16198,6 +16226,18 @@ export default {
         while (snoozeCountCache.size > SNOOZE_COUNT_CACHE_MAX) {
           const oldest = snoozeCountCache.keys().next().value;
           snoozeCountCache.delete(oldest);
+        }
+        return counts;
+      }
+
+      function collectCachedSnoozeCounts(tasks) {
+        const counts = new Map();
+        const nowMs = Date.now();
+        for (const task of tasks || []) {
+          const entry = task?.uid ? snoozeCountCache.get(task.uid) : null;
+          if (entry && entry.editedAt === task.editedAt && nowMs - entry.at < SNOOZE_COUNT_TTL_MS) {
+            counts.set(task.uid, entry.count);
+          }
         }
         return counts;
       }
@@ -16219,7 +16259,9 @@ export default {
             .map((m) => ({ completedAt: m.completedAt, dueAt: m.dueAt instanceof Date ? m.dueAt : null }));
           series.push({
             seriesId,
-            title: (open.length ? open[0].title : members[members.length - 1]?.title) || "",
+            title: (open.length
+              ? (open[0].displayTitle || open[0].title)
+              : (members[members.length - 1]?.displayTitle || members[members.length - 1]?.title)) || "",
             openMember,
             completions,
             stats: computeSeriesStreaks(members),
@@ -16232,17 +16274,19 @@ export default {
 
       async function computeDashboardSuggestions(options = {}) {
         const includeDismissed = options.includeDismissed === true;
+        const fast = options.fast === true;
         if (
           !includeDismissed &&
           suggestionsCache &&
+          (fast || suggestionsCache.complete !== false) &&
           Date.now() - suggestionsCache.computedAt < SUGGESTIONS_CACHE_TTL_MS
         ) {
           return suggestionsCache.data;
         }
         // The badge warm-up and a panel open can race — share one compute.
         if (!includeDismissed && suggestionsComputePromise) return suggestionsComputePromise;
-        const run = computeDashboardSuggestionsUncached(includeDismissed);
-        if (!includeDismissed) {
+        const run = computeDashboardSuggestionsUncached(includeDismissed, options);
+        if (!includeDismissed && !fast) {
           suggestionsComputePromise = run.finally(() => {
             suggestionsComputePromise = null;
           });
@@ -16251,25 +16295,39 @@ export default {
         return run;
       }
 
-      async function computeDashboardSuggestionsUncached(includeDismissed) {
+      async function computeDashboardSuggestionsUncached(includeDismissed, options = {}) {
+        const fast = options.fast === true;
         const suggestionSettings = getSuggestionSettings();
         const logEnabled = activityLogEnabled();
         if (!suggestionSettings.enabled) {
           const empty = { suggestions: [], computedAt: Date.now(), activityLogEnabled: logEnabled };
-          suggestionsCache = { data: empty, computedAt: Date.now() };
+          suggestionsCache = { data: empty, computedAt: Date.now(), complete: true };
+          persistSuggestionsCount(0);
           return empty;
         }
-        const tasks = await collectDashboardTasks({
-          includeCompleted: true,
-          attachWatches: false,
-          cacheKey: "suggestions",
-        });
+        const tasks = state.tasks.length
+          ? state.tasks
+          : await collectDashboardTasks({
+            includeCompleted: true,
+            attachWatches: false,
+            cacheKey: "dash:withDone",
+          });
         const all = Array.isArray(tasks) ? tasks : [];
         const now = new Date();
-        const snoozeCounts = await collectSnoozeCounts(all);
+        const snoozeCounts = fast
+          ? collectCachedSnoozeCounts(all)
+          : await collectSnoozeCounts(all, options);
         const series = buildSuggestionSeriesInput();
+        const suggestionTasks = all.map((task) => (
+          task?.displayTitle && task.displayTitle !== task.title
+            ? { ...task, title: task.displayTitle }
+            : task
+        ));
+        if (options.background && typeof options.yieldToMainThread === "function") {
+          await options.yieldToMainThread();
+        }
         const computed = computeSuggestionsCore(
-          { tasks: all, snoozeCounts, series },
+          { tasks: suggestionTasks, snoozeCounts, series },
           {
             now,
             thresholds: {
@@ -16279,6 +16337,9 @@ export default {
             enabledRules: suggestionSettings.rules,
           }
         );
+        if (options.background && typeof options.yieldToMainThread === "function") {
+          await options.yieldToMainThread();
+        }
         // Prune the dismissal store while the live subject set is at hand.
         const subjects = new Set();
         for (const task of all) subjects.add(task.uid);
@@ -16292,13 +16353,29 @@ export default {
           ? computed
           : filterDismissedSuggestions(computed, entries, { now });
         const data = { suggestions: visible, computedAt: Date.now(), activityLogEnabled: logEnabled };
-        if (!includeDismissed) suggestionsCache = { data, computedAt: Date.now() };
+        if (!includeDismissed) {
+          suggestionsCache = { data, computedAt: Date.now(), complete: !fast };
+          if (!fast) persistSuggestionsCount(visible.length);
+        }
         return data;
       }
 
       // Badge source — last computed result, possibly stale; never computes.
       function getSuggestionsCached() {
-        return suggestionsCache ? suggestionsCache.data : null;
+        return suggestionsCache?.complete !== false ? suggestionsCache?.data || null : null;
+      }
+
+      function getSuggestionsCountCached() {
+        if (suggestionsCache?.data?.suggestions) return suggestionsCache.data.suggestions.length;
+        return suggestionsCountSnapshot?.count ?? null;
+      }
+
+      function persistSuggestionsCount(count) {
+        suggestionsCountSnapshot = writeSuggestionCountSnapshot(
+          typeof window !== "undefined" ? window.localStorage : null,
+          suggestionsCountStorageKey,
+          count
+        ) || suggestionsCountSnapshot;
       }
 
       // Keep the cached list (and therefore the badge) accurate after an
@@ -16311,7 +16388,9 @@ export default {
             suggestions: suggestionsCache.data.suggestions.filter((s) => s.id !== id),
           },
           computedAt: suggestionsCache.computedAt,
+          complete: suggestionsCache.complete,
         };
+        persistSuggestionsCount(suggestionsCache.data.suggestions.length);
       }
 
       function dismissSuggestion(id) {
@@ -17397,6 +17476,7 @@ export default {
         // to avoid stale intermediate states from Roam's pull watchers
         if (bulkOperationInProgress) return;
         try {
+          dashboardBlockRefTitleCache.delete(uid);
           const set = S();
           invalidateBlockCache(uid);
           const block = await getBlock(uid);
@@ -18238,6 +18318,7 @@ export default {
     function deriveDashboardTask(block, meta, set) {
       if (!block) return null;
       const title = formatDashboardTitle(block.string || "");
+      const displayTitle = resolveBlockReferences(title, resolveDashboardBlockRefTitle);
       const attrCompleted = meta?.completed || meta?.childAttrMap?.completed?.value || null;
       const isCompleted = isBlockCompleted(block) || !!attrCompleted;
       const completedAtRaw = meta?.childAttrMap?.completed?.value || null;
@@ -18270,6 +18351,7 @@ export default {
         uid: block.uid,
         text: block.string || "",
         title,
+        displayTitle,
         pageUid: block.page?.uid || null,
         pageTitle: block.page?.title || block.page?.["node/title"] || "",
         repeatText: meta?.repeat || "",
@@ -18415,6 +18497,42 @@ export default {
         .replace(/^\s*\{\{\s*\[\[\s*(?:TODO|DONE)\s*\]\]\s*\}\}\s*/i, "")
         .replace(/^\s*(?:TODO|DONE)\s+/i, "")
         .trim();
+    }
+
+    function resolveDashboardBlockRefTitle(uid) {
+      if (!uid || typeof uid !== "string") return null;
+      if (dashboardBlockRefTitleCache.has(uid)) return dashboardBlockRefTitleCache.get(uid);
+      let value = null;
+      try {
+        const pulled = window.roamAlphaAPI?.data?.pull?.(
+          "[:block/string]",
+          [":block/uid", uid]
+        );
+        const raw = pulled?.[":block/string"] ?? pulled?.string ?? null;
+        value = typeof raw === "string" ? formatDashboardTitle(raw) : null;
+      } catch (_) {
+        value = null;
+      }
+      dashboardBlockRefTitleCache.set(uid, value);
+      return value;
+    }
+
+    function resolveDashboardPageUid(title) {
+      const name = typeof title === "string" ? title.trim() : "";
+      if (!name) return null;
+      if (dashboardPageUidCache.has(name)) return dashboardPageUidCache.get(name);
+      let uid = null;
+      try {
+        const pulled = window.roamAlphaAPI?.data?.pull?.(
+          "[:block/uid]",
+          [":node/title", name]
+        );
+        uid = pulled?.[":block/uid"] || null;
+      } catch (_) {
+        uid = null;
+      }
+      dashboardPageUidCache.set(name, uid);
+      return uid;
     }
 
     function formatDateDisplay(date, set) {
