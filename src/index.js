@@ -94,6 +94,7 @@ import { scheduleDashboardWarmup } from "./core/dashboard-warmup";
 import { createAnalyticsCache } from "./core/analytics-cache";
 import { openBetterTasksSettings } from "./core/open-settings";
 import { resolveBlockReferences } from "./core/block-references";
+import { getThemeObserverRegistrations } from "./core/theme-observer";
 import {
   readSuggestionCountSnapshot,
   suggestionCountSnapshotKey,
@@ -20173,13 +20174,13 @@ function observeThemeChanges() {
     const cb = () => triggerThemeResync(180);
     themeObserver = new MutationObserver(cb);
     try {
-      const targets = [document.body, document.documentElement, document.head].filter(Boolean);
-      for (const target of targets) {
-        const opts =
-          target === document.head
-            ? { childList: true, subtree: true, attributes: true, attributeFilter: ["href", "data-theme"] }
-            : { attributes: true, attributeFilter: ["class", "data-theme"], subtree: true };
-        themeObserver.observe(target, opts);
+      const registrations = getThemeObserverRegistrations({
+        body: document.body,
+        documentElement: document.documentElement,
+        head: document.head,
+      });
+      for (const { target, options } of registrations) {
+        themeObserver.observe(target, options);
       }
     } catch (_) {
       themeObserver = null;
