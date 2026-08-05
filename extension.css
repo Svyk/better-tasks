@@ -458,6 +458,24 @@ body.bt-theme-dark .bt-task-row__context {
     color: var(--bt-muted);
 }
 
+/* Today panel. Its own styles inherit colour from the host block and read
+   --bt-panel-text, both of which can resolve to a light-theme value (Roam
+   leaves --bp3-text-color at #202B33 under .bp3-dark), leaving invisible
+   titles and ghost icon buttons. Pin literal light values here, like the
+   task-row rules above, rather than routing through the sampled variable. */
+body.bp3-dark .bt-today-panel-root,
+body.bt-theme-dark .bt-today-panel-root {
+    color: rgba(247, 249, 251, 0.92);
+}
+
+body.bp3-dark .bt-today-panel__icon-btn,
+body.bt-theme-dark .bt-today-panel__icon-btn {
+    background: rgba(255, 255, 255, 0.12);
+    color: rgba(247, 249, 251, 0.92);
+    border-color: rgba(255, 255, 255, 0.28);
+    box-shadow: none;
+}
+
 .bt-today-badge {
     display: flex;
     align-items: center;
