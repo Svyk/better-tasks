@@ -458,6 +458,49 @@ body.bt-theme-dark .bt-task-row__context {
     color: var(--bt-muted);
 }
 
+/* Today panel. Its own styles inherit colour from the host block and read
+   --bt-panel-text, both of which can resolve to a light-theme value (Roam
+   leaves --bp3-text-color at #202B33 under .bp3-dark), leaving invisible
+   titles and ghost icon buttons. Pin literal light values here, like the
+   task-row rules above, rather than routing through the sampled variable. */
+body.bp3-dark .bt-today-panel-root,
+body.bt-theme-dark .bt-today-panel-root {
+    color: rgba(247, 249, 251, 0.92);
+}
+
+body.bp3-dark .bt-today-panel__icon-btn,
+body.bt-theme-dark .bt-today-panel__icon-btn {
+    background: rgba(255, 255, 255, 0.12);
+    color: rgba(247, 249, 251, 0.92);
+    border-color: rgba(255, 255, 255, 0.28);
+    box-shadow: none;
+}
+
+body.bp3-dark .bt-today-panel__icon-btn:hover,
+body.bt-theme-dark .bt-today-panel__icon-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* disableAll() sets .disabled while an action is in flight; the pinned
+   dark `color` above is an author-level override that beats the
+   button:disabled user-agent grey, so give disabled state its own
+   explicit (dimmer) values instead of leaning on opacity, which would
+   multiply against the already-alpha'd text and land back in the same
+   low-contrast trap as the blocked/completed rows below. */
+body.bp3-dark .bt-today-panel__icon-btn:disabled,
+body.bt-theme-dark .bt-today-panel__icon-btn:disabled {
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(247, 249, 251, 0.45);
+    border-color: rgba(255, 255, 255, 0.14);
+    cursor: not-allowed;
+}
+
+body.bp3-dark .bt-today-panel__icon-btn:focus-visible,
+body.bt-theme-dark .bt-today-panel__icon-btn:focus-visible {
+    outline-color: #63b3ed;
+}
+
 .bt-today-badge {
     display: flex;
     align-items: center;
@@ -496,6 +539,16 @@ body.bt-theme-dark .bt-task-row__context {
     font-size: 16px;
     font-weight: 500;
     line-height: 24px;
+}
+
+body.bp3-dark .bt-today-badge:hover,
+body.bt-theme-dark .bt-today-badge:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+body.bp3-dark .bt-today-badge__icon,
+body.bt-theme-dark .bt-today-badge__icon {
+    color: rgba(247, 249, 251, 0.78);
 }
 
 body.bp3-dark .bt-task-row__actions .bp3-button,
