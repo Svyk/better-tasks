@@ -501,6 +501,32 @@ body.bt-theme-dark .bt-today-panel__icon-btn:focus-visible {
     outline-color: #63b3ed;
 }
 
+/* Roam core (assets/css/less-compiled/site.css) ships
+       .bp3-dark button { color: var(--dark-bg); }
+   at specificity 0,1,1. A bare `.bt-today-panel__row-title { color: inherit }`
+   is only 0,1,0, so Roam wins and paints the task title with the panel
+   BACKGROUND colour — measured contrast 1.00, i.e. invisible. The icon buttons
+   escaped this only because their dark rule above is 0,2,0.
+
+   So: every <button> the panel renders needs an explicit colour at >= 0,1,1.
+   Scope it to the panel root and match `button` directly (0,2,2) so any button
+   added later inherits the fix instead of silently disappearing. Disabled state
+   above stays 0,3,0 and still wins.
+
+   Note `body.bp3-dark` alone is NOT sufficient: in this Roam build `bp3-dark`
+   lives on <html>, and in Roam's auto mode it exists nowhere at all — hence the
+   :is(html, body) form plus the prefers-color-scheme fallback. */
+body.bt-theme-dark .bt-today-panel-root button,
+:is(html, body).bp3-dark .bt-today-panel-root button {
+    color: rgba(247, 249, 251, 0.92);
+}
+
+@media (prefers-color-scheme: dark) {
+    body:not(.bt-theme-light) .bt-today-panel-root button {
+        color: rgba(247, 249, 251, 0.92);
+    }
+}
+
 .bt-today-badge {
     display: flex;
     align-items: center;
