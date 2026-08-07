@@ -100,7 +100,7 @@ import {
   suggestionCountSnapshotKey,
   writeSuggestionCountSnapshot,
 } from "./core/suggestion-snapshot";
-import { resolvePanelIsDark } from "./core/theme-resolve.js";
+import { resolvePanelIsDark, shouldSkipThemeSync } from "./core/theme-resolve.js";
 import {
   normalizePulledSubtree,
   flattenSubtreeToCreateSteps,
@@ -19920,9 +19920,18 @@ function syncDashboardThemeVars() {
     computed.backgroundColor
   );
 
+  // Keying "nothing changed" on the surface sample alone let a genuine
+  // dark<->light transition get silently dropped: the theme-observer's
+  // class-mutation resync can land while the surface-colour heuristic still
+  // reports the pre-flip value, so the mode flip itself has to be checked
+  // too, or this returns before ever reaching the classList.toggle /
+  // six-property writes below. See shouldSkipThemeSync's header comment.
   if (
-    !btPendingRoamStudioTheme &&
-    baseSurfaceCandidate === (lastThemeSample?.surface || null)
+    shouldSkipThemeSync({
+      forced: btPendingRoamStudioTheme,
+      sameSurface: baseSurfaceCandidate === (lastThemeSample?.surface || null),
+      sameMode: (lastThemeSample?.dark ?? null) === finalIsDark,
+    })
   ) {
     return;
   }
@@ -20238,7 +20247,19 @@ async function waitForRepeatState(uid, set, options = {}, retries = 6, getBlockF
 
 function observeThemeChanges() {
   if (typeof document === "undefined") return;
-  syncDashboardThemeVars();
+
+  // Sampling immediately on boot can land mid Roam's white flash — before
+  // Roam's own theme class/background is applied — which caches a false
+  // "light" surface as lastThemeSample. shouldSkipThemeSync now re-runs on
+  // any later mode change regardless, but skipping the flash sample avoids
+  // relying on that correction at all for the common case. Defer one frame
+  // past paint; the observer below still wires up synchronously so a real
+  // theme mutation during that single frame is never missed.
+  if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+    window.requestAnimationFrame(() => syncDashboardThemeVars());
+  } else {
+    syncDashboardThemeVars();
+  }
 
   if (!document.body) return;
 
