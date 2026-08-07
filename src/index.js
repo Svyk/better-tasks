@@ -100,6 +100,7 @@ import {
   suggestionCountSnapshotKey,
   writeSuggestionCountSnapshot,
 } from "./core/suggestion-snapshot";
+import { resolvePanelIsDark } from "./core/theme-resolve.js";
 import {
   normalizePulledSubtree,
   flattenSubtreeToCreateSteps,
@@ -19887,16 +19888,6 @@ function syncDashboardThemeVars() {
     root.dataset.theme === "dark";
 
   const externalMode = getExternalAppearanceFromToggle(); // "dark" | "light" | "auto" | null
-  let finalIsDark;
-  if (externalMode === "dark") {
-    finalIsDark = true;
-  } else if (externalMode === "light") {
-    finalIsDark = false;
-  } else if (externalMode === "auto") {
-    finalIsDark = explicitDark || systemPrefersDark;
-  } else {
-    finalIsDark = explicitDark || systemPrefersDark;
-  }
 
   const layoutBg = sampleBackgroundColor([
     ".roam-main",
@@ -19904,6 +19895,13 @@ function syncDashboardThemeVars() {
     ".roam-body",
     "#app",
   ]);
+
+  const finalIsDark = resolvePanelIsDark({
+    externalMode,
+    explicitDark,
+    sampledLuminance: computeLuminance(parseColorToRgb(layoutBg)),
+    systemPrefersDark,
+  });
 
   // Theme-specific dark fallback for the panel surface
   const darkFallbackSurface = usingBlueprint ? "#202B33" : "#1f2428";
