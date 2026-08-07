@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { resolvePanelIsDark } from "../src/core/theme-resolve.js";
+import { resolvePanelIsDark, shouldSkipThemeSync } from "../src/core/theme-resolve.js";
 
 // Regression: macOS in dark mode, Roam in its default light theme, no theme
 // extension toggle mounted. The OS hint used to win and mark the body
@@ -118,4 +118,43 @@ test("NaN luminance is treated as no sample", () => {
     }),
     true
   );
+});
+
+// Regression: a theme-observer class-mutation resync landed with the
+// surface-colour heuristic still reporting the pre-flip value even though
+// the resolved mode had genuinely changed (dark just activated). Keying the
+// skip decision on surface alone made syncDashboardThemeVars return before
+// ever reaching classList.toggle("bt-theme-dark", ...) or the six
+// custom-property writes, so the panel stayed stuck light while
+// bt-theme-dark read true from a stale prior write.
+test("shouldSkipThemeSync: skips only when both surface and mode are unchanged", () => {
+  assert.equal(
+    shouldSkipThemeSync({ forced: false, sameSurface: true, sameMode: true }),
+    true
+  );
+});
+
+test("shouldSkipThemeSync: a mode change always proceeds, even with a same-looking surface sample", () => {
+  assert.equal(
+    shouldSkipThemeSync({ forced: false, sameSurface: true, sameMode: false }),
+    false
+  );
+});
+
+test("shouldSkipThemeSync: a surface change always proceeds, even with the same resolved mode", () => {
+  assert.equal(
+    shouldSkipThemeSync({ forced: false, sameSurface: false, sameMode: true }),
+    false
+  );
+});
+
+test("shouldSkipThemeSync: a forced resync (pending toggle click) always proceeds", () => {
+  assert.equal(
+    shouldSkipThemeSync({ forced: true, sameSurface: true, sameMode: true }),
+    false
+  );
+});
+
+test("shouldSkipThemeSync: defaults to not skipping when called with no arguments", () => {
+  assert.equal(shouldSkipThemeSync(), false);
 });
