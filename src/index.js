@@ -19777,49 +19777,98 @@ function syncDashboardThemeVars() {
   const fallbackMutedDark = usingBlueprint
     ? "rgba(255,255,255,0.82)"
     : "rgba(255,255,255,0.65)";
+  // Non-Blueprint value tracks the stylesheet's own dark --bt-pill-bg: this is
+  // now the authoritative source for that variable, so anything lower would
+  // make pills fainter in dark themes than they were before the cascade fix.
   const fallbackPillBgDark = usingBlueprint
     ? "rgba(255,255,255,0.18)"
-    : "rgba(255,255,255,0.08)";
+    : "rgba(255,255,255,0.12)";
 
-  const textColor = pickColorValue(
-    finalIsDark ? fallbackTextDark : "#111111",
-    computed.getPropertyValue("--bt-text"),
-    computed.getPropertyValue("--bp3-text-color"),
-    computed.color
+  // A sample only helps if it agrees with the mode we resolved. Roam keeps
+  // --bp3-text-color at #202B33 under .bp3-dark, and --bp3-border-color at its
+  // light-mode ink, so these chains can hand back a light-theme colour while we
+  // are painting a dark panel. That never showed while these writes landed on
+  // <html>, because the stylesheet's `body.bt-theme-dark` block shadowed them;
+  // now that they land on <body> and actually win (see the writes below), an
+  // unchecked sample would paint dark-on-dark. Reject a dark sample in dark mode
+  // and keep the pinned fallback — the same clamp the panel surface already got
+  // above. Light mode is deliberately left alone: its writes were never
+  // shadowed, so its sampling is the behaviour already shipping.
+  const darkSafe = (value, fallback) => {
+    if (!finalIsDark) return value;
+    const luminance = computeLuminance(parseColorToRgb(value));
+    return typeof luminance === "number" && luminance >= 0.5 ? value : fallback;
+  };
+
+  const textColor = darkSafe(
+    pickColorValue(
+      finalIsDark ? fallbackTextDark : "#111111",
+      computed.getPropertyValue("--bt-text"),
+      computed.getPropertyValue("--bp3-text-color"),
+      computed.color
+    ),
+    fallbackTextDark
   );
 
-  const borderColor = pickColorValue(
-    finalIsDark ? fallbackBorderDark : "rgba(0,0,0,0.08)",
-    computed.getPropertyValue("--bt-border-color"),
-    computed.getPropertyValue("--bp3-border-color"),
-    computed.getPropertyValue("--border-color")
+  const borderColor = darkSafe(
+    pickColorValue(
+      finalIsDark ? fallbackBorderDark : "rgba(0,0,0,0.08)",
+      computed.getPropertyValue("--bt-border-color"),
+      computed.getPropertyValue("--bp3-border-color"),
+      computed.getPropertyValue("--border-color")
+    ),
+    fallbackBorderDark
   );
 
-  const mutedColor = pickColorValue(
-    finalIsDark ? fallbackMutedDark : "rgba(0,0,0,0.6)",
-    computed.getPropertyValue("--bt-muted-color"),
-    computed.getPropertyValue("--text-color-muted")
+  const mutedColor = darkSafe(
+    pickColorValue(
+      finalIsDark ? fallbackMutedDark : "rgba(0,0,0,0.6)",
+      computed.getPropertyValue("--bt-muted-color"),
+      computed.getPropertyValue("--text-color-muted")
+    ),
+    fallbackMutedDark
   );
 
-  const pillBg = pickColorValue(
-    finalIsDark ? fallbackPillBgDark : "rgba(0,0,0,0.07)",
-    computed.getPropertyValue("--bt-pill-bg")
-  );
+  // Every other sample above reads a THEME-owned input variable (--bt-surface,
+  // --bt-text, --bt-border-color, --bt-muted-color) and writes a different,
+  // extension-owned output variable. --bt-pill-bg was the one name used as both
+  // input and output, so it never resolved to anything but the value the
+  // stylesheet had just declared — the theme-specific fallbacks below were dead.
+  // Reading it is also unsafe now that the write target is <body> (see below):
+  // the value written on a dark pass would be read back on the next light pass
+  // and pin dark pills onto a light panel.
+  const pillBg = finalIsDark ? fallbackPillBgDark : "rgba(0,0,0,0.07)";
 
   body.classList.toggle("bt-theme-dark", finalIsDark);
   body.classList.toggle("bt-theme-light", !finalIsDark);
 
   const adjustedPanel =
     adjustColor(panelRgb, finalIsDark ? -0.06 : 0.03) || baseSurface;
+  // adjustColor mixes toward white for a positive delta and toward black for a
+  // negative one, so a "strong" border has to move AWAY from the panel: lighter
+  // than a dark surface, darker than a light one. The old signs did the reverse
+  // and, on the default white panel, resolved --bt-border-strong to #ffffff —
+  // an invisible border, which is live today because only the dark half of
+  // these writes was being shadowed by the stylesheet.
   const borderStrong =
-    adjustColor(panelRgb, finalIsDark ? -0.22 : 0.15) || borderColor;
+    adjustColor(panelRgb, finalIsDark ? 0.22 : -0.15) || borderColor;
 
-  root.style.setProperty("--bt-panel-bg", adjustedPanel);
-  root.style.setProperty("--bt-panel-text", textColor);
-  root.style.setProperty("--bt-border", borderColor);
-  root.style.setProperty("--bt-border-strong", borderStrong);
-  root.style.setProperty("--bt-muted", mutedColor);
-  root.style.setProperty("--bt-pill-bg", pillBg);
+  // Write on <body>, not <html>. Custom properties resolve per element: the
+  // dark block in extension.css declares these same six names on
+  // `body.bt-theme-dark`, so <body> and every panel node under it took the
+  // stylesheet's value and the html-level inline declaration was only ever
+  // visible to <html> itself. Everything this function samples — the clamped
+  // #202B33 Blueprint surface, the stronger Blueprint borders/pills, the
+  // adjustColor() panel and border-strong shades — was therefore computed and
+  // then discarded. Inline style on <body> outranks that class rule, so the
+  // sampled values now reach the panel. The theme MutationObserver filters on
+  // ["class", "data-theme"], so writing style here cannot re-enter this sync.
+  body.style.setProperty("--bt-panel-bg", adjustedPanel);
+  body.style.setProperty("--bt-panel-text", textColor);
+  body.style.setProperty("--bt-border", borderColor);
+  body.style.setProperty("--bt-border-strong", borderStrong);
+  body.style.setProperty("--bt-muted", mutedColor);
+  body.style.setProperty("--bt-pill-bg", pillBg);
 
   lastThemeSample = { surface: baseSurface, dark: finalIsDark };
 }
