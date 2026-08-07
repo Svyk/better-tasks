@@ -428,17 +428,52 @@ body.bt-theme-dark .bt-task-row__page-ref--plain {
     background: rgba(255, 255, 255, 0.1);
 }
 
+/* Filter chips and task pills are both <button>s whose base rules
+   (`.bt-chip`, `.bt-pill`) are 0,1,0 — under the `.bp3-dark button { color:
+   var(--dark-bg) }` rule Roam ships at 0,1,1 their label is painted with the
+   page BACKGROUND colour, the same invisible-text trap documented for the
+   Today panel below. These rules are 0,2,1 and win.
+
+   `.bt-chip` also had no dark background at all: `background: transparent` plus
+   a 1px translucent border reads as an empty outline on a dark panel, and
+   `.bt-pill` had no dark rule whatsoever. Give the inactive states a real
+   surface. `:is(html, body).bp3-dark` matches this Roam build, where bp3-dark
+   lives on <html> so the `body.bp3-dark` form never fires; it has the same
+   0,2,1 specificity as the body form it sits beside. */
 body.bp3-dark .bt-chip,
-body.bt-theme-dark .bt-chip {
-    color: var(--bt-panel-text);
-    border-color: rgba(255, 255, 255, 0.32);
+body.bt-theme-dark .bt-chip,
+:is(html, body).bp3-dark .bt-chip {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--bt-panel-text, rgba(247, 249, 251, 0.92));
+    border-color: var(--bt-border-strong, rgba(255, 255, 255, 0.32));
 }
 
 body.bp3-dark .bt-chip--active,
-body.bt-theme-dark .bt-chip--active {
-    background: var(--bt-panel-text);
+body.bt-theme-dark .bt-chip--active,
+:is(html, body).bp3-dark .bt-chip--active {
+    background: var(--bt-panel-text, rgba(247, 249, 251, 0.92));
     color: #0f1418;
-    border-color: var(--bt-panel-text);
+    border-color: var(--bt-panel-text, rgba(247, 249, 251, 0.92));
+}
+
+body.bp3-dark .bt-pill,
+body.bt-theme-dark .bt-pill,
+:is(html, body).bp3-dark .bt-pill {
+    background: var(--bt-pill-bg, rgba(255, 255, 255, 0.12));
+    color: var(--bt-panel-text, rgba(247, 249, 251, 0.92));
+    border-color: var(--bt-border-strong, rgba(255, 255, 255, 0.28));
+}
+
+/* `.bt-pill--muted { opacity: .6 }` multiplies against text that is already
+   alpha'd, which is how the disabled Today-panel buttons ended up illegible.
+   Dim with an explicit colour instead and keep the pill body visible. */
+body.bp3-dark .bt-pill--muted,
+body.bt-theme-dark .bt-pill--muted,
+:is(html, body).bp3-dark .bt-pill--muted {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.07);
+    color: rgba(247, 249, 251, 0.68);
+    border-color: rgba(255, 255, 255, 0.2);
 }
 
 body.bp3-dark .bt-filter-row__label,
