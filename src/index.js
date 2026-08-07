@@ -19726,7 +19726,12 @@ function syncDashboardThemeVars() {
   const finalIsDark = resolvePanelIsDark({
     externalMode,
     explicitDark,
-    sampledLuminance: computeLuminance(parseColorToRgb(layoutBg)),
+    sampledLuminance: computeLuminance(
+      parseColorToRgb(
+        layoutBg ||
+          sampleEffectiveBackgroundColor([".roam-main", ".roam-article", "#app", "body"])
+      )
+    ),
     systemPrefersDark,
   });
 
@@ -19926,6 +19931,26 @@ function sampleBackgroundColor(selectors = []) {
     const color = style?.backgroundColor;
     if (color && color !== "rgba(0, 0, 0, 0)" && color !== "transparent") {
       return color;
+    }
+  }
+  return null;
+}
+
+// Roam paints the page background on <body> (desktop wraps it once more in
+// .rm-electron); .roam-main, .roam-article and every container between them
+// are fully transparent. Sampling only the selectors themselves therefore
+// returns null and the theme decision would fall through to the OS hint —
+// walk each candidate's ancestor chain until something actually paints.
+function sampleEffectiveBackgroundColor(selectors = []) {
+  if (typeof document === "undefined") return null;
+  for (const selector of selectors) {
+    let node = typeof selector === "string" ? document.querySelector(selector) : selector;
+    while (node) {
+      const color = window.getComputedStyle(node)?.backgroundColor;
+      if (color && color !== "rgba(0, 0, 0, 0)" && color !== "transparent") {
+        return color;
+      }
+      node = node.parentElement;
     }
   }
   return null;
