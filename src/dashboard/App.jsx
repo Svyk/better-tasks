@@ -528,13 +528,15 @@ function useVirtualRows(groups, expandedMap, expandedParentMap, filteredTaskInde
   }, [groups, expandedMap, expandedParentMap, filteredTaskIndex]);
 }
 
-function Pill({ icon, label, value, muted, onClick }) {
+function Pill({ icon, label, value, muted, onClick, statusTitle }) {
   if (!value) return null;
+  const Component = typeof onClick === "function" ? "button" : "span";
   return (
-    <button
-      type="button"
+    <Component
+      type={Component === "button" ? "button" : undefined}
       className={`bt-pill${muted ? " bt-pill--muted" : ""}`}
       title={label || undefined}
+      data-task-status-title={statusTitle || undefined}
       onClick={onClick}
     >
       {icon ? (
@@ -543,7 +545,7 @@ function Pill({ icon, label, value, muted, onClick }) {
         </span>
       ) : null}
       <span className="bt-pill__value">{value}</span>
-    </button>
+    </Component>
   );
 }
 
@@ -1442,7 +1444,8 @@ function TaskRow({ task, controller, strings, selectionActive, isSelected, onTog
                     label={pill.label}
                     value={pill.value}
                     muted={!pill.value}
-                    onClick={(e) => handlePillClick(e, pill, task, controller)}
+                    statusTitle={pill.statusTitle}
+                    onClick={pill.type === "taskStatus" ? undefined : (e) => handlePillClick(e, pill, task, controller)}
                   />
                 </div>
               ))}
@@ -2348,7 +2351,7 @@ function FocusModePanel({ queue, controller, language, liveSnapshot, strings, on
           <div className="bt-focus-mode__pills">
             {currentTask.metaPills.map((pill) => (
               <div key={`${currentTask.uid}-fm-${pill.type}`} className="bt-pill-wrap">
-                <Pill icon={pill.icon} label={pill.label} value={pill.value} muted={!pill.value} />
+                <Pill icon={pill.icon} label={pill.label} value={pill.value} muted={!pill.value} statusTitle={pill.statusTitle} />
               </div>
             ))}
           </div>
